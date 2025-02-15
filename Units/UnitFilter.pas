@@ -1,0 +1,768 @@
+unit UnitFilter;
+
+interface uses System.IOUtils, System.Classes, System.SysUtils, IniFiles, UnitUtils;
+
+{***
+  ќжидаема€ структура фильтра:
+   #$## // configuration opener
+   # configuration // application config
+   #$## // configuration closer
+   #### // section opener
+   # section // section name, and content
+   #### // section closer
+   # comment // comment on following block
+   #comment // still comment on following block
+   #* inherits:ShowItemGood // some app marker loaded from config
+   Show // filter content
+       BaseType "Item" // filter content
+
+   # comment // comment on following block
+   Hide // filter content
+       BaseType "BadItem"
+
+  ќсновные правила:
+   * конфигураци€ бывает только в одном экземпл€ре
+   * маркеров можно быть много на одной строке, их формат: marker_name:marker_value; marker2_name;
+   * маркеры примен€емы только к блоку
+   * в случае, если фильтр не был создан в программе, секци€ будет одна
+
+***}
+
+type
+TFilterConfig = class
+  // пока пусто
+end;
+
+TFilterMarker = class
+private
+  FName: string;
+  FValue: string;
+public
+  constructor Create(); overload;
+  constructor Create(const Name, Value: string); overload;
+  property Name: string read FName;
+  property Value: string read FValue;
+end;
+
+TArgumentKind = (akInt, akList, akVariadic, akColor, akSockets);
+TActionArgument = class
+private
+  FName: string;
+  FInternalName: string;
+  FKind: TArgumentKind;
+  FMinimum: integer;
+  FMaximum: integer;
+  FDefault: integer;
+  FValues: TStrings;
+public
+  constructor Create();
+  property Name: string read FName;
+  property InternalName: string read FInternalName;
+  property Kind: TArgumentKind read FKind;
+  property Minimum: integer read FMinimum;
+  property Maximum: integer read FMaximum;
+  property DefaultValue: integer read FDefault;
+  property Values: TStrings read FValues;
+end;
+
+TActionAguments = array of TActionArgument;
+TAction = class
+private
+  FName: string;
+  FText: string;
+  FKind: string;
+  FRequired: integer;
+  FArguments: TActionAguments;
+public
+  property Name: string read FName;
+  property Text: string read FText;
+  property Kind: string read FKind;
+  property Required: integer read FRequired;
+  property Arguments: TActionAguments read FArguments;
+end;
+TActionArray = array of TAction;
+TActions = class(TObject)
+private
+  FVersion: integer;
+  FActions: TActionArray;
+public
+  constructor Create(Content: TStream);
+  property Version: integer read FVersion;
+  property Actions: TActionArray read FActions;
+  function GetAction(Name: string): TAction;
+end;
+
+TFilterItem = class
+private
+  FAction: TAction;
+  FName: string;
+  FArguments: TStrings;
+public
+  constructor Create(Action: TAction; Arguments: TStrings); overload;
+  destructor Destroy(); override;
+  property Action: TAction read FAction;
+  property Name: string read FName;
+  property Arguments: TStrings read FArguments;
+end;
+
+TFilterItems = array of TFilterItem;
+TFilterBlock = class
+private
+  FType: string;
+  FComment: TStrings;
+  FMarkers: array of TFilterMarker;
+  FItems: TFilterItems;
+public
+  constructor Create();
+  destructor Destroy(); override;
+  procedure Delete(const Index: integer);
+  procedure Insert(const Index: integer; const Item: TFilterItem);
+  function Clone(): TFilterBlock;
+  function HasMarker(Name: string): boolean;
+  property Kind: string read FType write FType;
+  property Comment: TStrings read FComment;
+  property Items: TFilterItems read FItems;
+const
+  mDisabled: string = 'disabled';
+end;
+
+TFilterBlocks = array of TFilterBlock;
+TFilterSection = class
+private
+  FComment: TStrings;
+  FBlocks: TFilterBlocks;
+public
+  constructor Create();
+  property Comment: TStrings read FComment;
+  property Blocks: TFilterBlocks read FBlocks;
+  procedure Add(Block: TFilterBlock);
+  procedure Delete(const Index: integer);
+  procedure Remove(const Index: integer);
+  procedure Insert(const Index: integer; const Block: TFilterBlock);
+end;
+
+TFilterSections = array of TFilterSection;
+TFilter = class(TObject)
+private
+  FFileName: string;
+  //sFConfig: TFilterConfig;
+  FSections: TFilterSections;
+  FActions: TActions;
+public
+  constructor Create(FileName: string; Content: TStrings; Actions: TActions);
+  destructor Destroy(); override;
+  procedure Parse(Data: TStrings);
+  property FileName: string read FFileName;
+  property Actions: TActions read FActions;
+  property Sections: TFilterSections read FSections;
+  procedure Add(Section: TFilterSection);
+  procedure Insert(const Index: integer; const Section: TFilterSection);
+  procedure Delete(const Index: integer);
+  procedure MoveBlock(const SourceSection, Block, DstSection, DstBlock: integer);
+  procedure MoveSection(const Source, Destination: integer);
+end;
+
+type TFilterUtils = class
+public
+  class function IsFilter(Name: string): boolean; stdcall; static;
+  class function GetSimpleName(Name: string): string; stdcall; static;
+  class function GetFileName(SimpleName: string): string; stdcall; static;
+  class function IsOperator(const S: string; const Index: integer): boolean; stdcall; static;
+end;
+
+implementation
+type
+TParsedItem = record
+  Base: string;
+  Arguments: TStrings;
+end;
+
+const
+  cFilterExtension: string = '.filter';
+  cfPrefConfig: string = '#$##';
+  cfPrefSection: string = '####';
+  cfPrefComment: string = '#';
+  cfPrefMarker: string = '#* ';
+  cfBlockShow: string  = 'Show';
+  cfBlockHide: string = 'Hide';
+  cVersion: string = ':version';
+
+{$REGION 'TFilter class functions'}
+destructor TFilterItem.Destroy();
+begin
+  FArguments.Free();
+end;
+
+constructor TFilterItem.Create(Action: TAction; Arguments: TStrings);
+begin
+  FAction := Action;
+  FName := Action.Name;
+  FArguments := Arguments;
+end;
+
+
+constructor TFilter.Create(FileName: string; Content: TStrings; Actions: TActions);
+begin
+  FFileName := FileName;
+  FActions := Actions;
+  Parse(Content);
+end;
+
+destructor TFilter.Destroy();
+var
+  section: TFilterSection;
+begin
+  for section in FSections do
+  begin
+    section.Free();
+  end;
+
+  inherited Destroy();
+end;
+
+procedure TFilter.Parse(Data: TStrings);
+  function GetActionInfo(const Text: string): TParsedItem;
+  var
+    items: TArray<string>;
+    i: Integer;
+  begin
+    items := Text.Split([' '], '"', '"', ExcludeEmpty);
+    Result.Base := items[0];
+    Result.Arguments := TStringList.Create();
+    for i := Low(items) + 1 to High(items) do
+    begin
+      Result.Arguments.Add(TrimString(items[i], '"'));
+    end;
+  end;
+
+  function GetCommentText(Text: string): string;
+  begin
+    Result := Trim(TrimString(Text, '#'));
+  end;
+var
+  currentSection: TFilterSection;
+  currentBlock: TFilterBlock;
+
+  procedure EnsureBlockExists();
+  begin
+    if currentSection = nil then
+    begin
+      currentSection := TFilterSection.Create();
+      currentSection.FComment.Add('General Section');
+      Add(currentSection);
+    end;
+
+    if currentBlock = nil then
+    begin
+      currentBlock := TFilterBlock.Create();
+      currentSection.Add(currentBlock);
+    end;
+  end;
+var
+  line, lineTrim, temp: string;
+  inSection, inConfig: boolean;
+  collectedComments: TStrings;
+  actionData: TParsedItem;
+  action: TAction;
+begin
+  inSection := false;
+  inConfig := false;
+  currentSection := nil;
+  currentBlock := nil;
+  collectedComments := TStringList.Create();
+  for line in Data do
+  begin
+    lineTrim := Trim(line);
+
+    // пропускаем пустую строку
+    if lineTrim = '' then
+    begin
+      continue;
+    end;
+
+    if inConfig then
+    begin
+      if lineTrim.StartsWith(cfPrefConfig) then
+      begin
+        inConfig := false;
+        continue;
+      end;
+
+      // todo: add parsing config.
+      continue;
+    end;
+
+    if inSection then
+    begin
+      if lineTrim.StartsWith(cfPrefSection) then
+      begin
+        inSection := false;
+        continue;
+      end;
+
+      temp := GetCommentText(lineTrim);
+      if temp = '' then
+      begin
+        continue;
+      end;
+
+      currentSection.FComment.Add(temp);
+
+      continue;
+    end;
+
+    if lineTrim.StartsWith(cfPrefConfig) then
+    begin
+      inConfig := true;
+      continue;
+    end;
+
+    if lineTrim.StartsWith(cfPrefSection) then
+    begin
+      inSection := true;
+      currentSection := TFilterSection.Create();
+      Add(currentSection);
+
+      continue;
+    end;
+
+    if lineTrim.StartsWith(cfPrefMarker) then
+    begin
+      // todo: there we must parse `disabled` marker, and after re-parse all text as uncommented
+      continue;
+    end;
+
+    if lineTrim.StartsWith(cfPrefComment) then
+    begin
+      temp := GetCommentText(lineTrim);
+      if temp = '' then
+      begin
+        continue;
+      end;
+
+      collectedComments.Add(temp);
+
+      continue;
+    end;
+
+    if lineTrim.StartsWith(cfBlockShow) or lineTrim.StartsWith(cfBlockHide) then
+    begin
+      EnsureBlockExists();
+
+      if currentBlock.FType <> '' then
+      begin
+        currentBlock := TFilterBlock.Create();
+        currentSection.Add(currentBlock);
+      end;
+
+      currentBlock.FType := Copy(lineTrim, 0, 4);
+      currentBlock.FComment.AddStrings(collectedComments);
+      collectedComments.Clear();
+
+      continue;
+    end;
+
+    actionData := GetActionInfo(lineTrim);
+    action := FActions.GetAction(actionData.Base);
+    if action <> nil then
+    begin
+      SetLength(currentBlock.FItems, Length(currentBlock.FItems) + 1);
+      currentBlock.FItems[High(currentBlock.FItems)] := TFilterItem.Create(action, actionData.Arguments);
+    end;
+  end;
+
+  lineTrim := '';
+end;
+{$ENDREGION}
+
+{$REGION 'TActions class functions'}
+constructor TActionArgument.Create();
+begin
+  FMinimum := -1;
+  FMaximum := -1;
+  FDefault := -1;
+end;
+
+constructor TActions.Create(Content: TStream);
+var
+  argRefs: array of TActionArgument;
+  config: TMemIniFile;
+
+  function FindArgument(const Name: string): TActionArgument;
+  begin
+    for Result in argRefs do
+    begin
+      if Result.FInternalName = Name then
+      begin
+        exit;
+      end;
+    end;
+
+    Result := nil;
+  end;
+
+  function LoadArgument(const Name: string): TActionArgument;
+    function ParseKind(const Kind: string): TArgumentKind;
+    begin
+      Result := akInt;
+      if Kind = 'color' then Result := akColor;
+      if Kind = 'list' then Result := akList;
+      if Kind = 'sockets' then Result := akSockets;
+      if Kind = 'variadic' then Result := akVariadic;
+    end;
+  begin
+    Result := TActionArgument.Create();
+
+    Result.FInternalName := Name;
+    Result.FName := config.ReadString(Name, 'name', '');
+    Result.FKind := ParseKind(config.ReadString(Name, 'type', ''));
+
+    if Result.Kind = akInt then
+    begin
+      Result.FMinimum := config.ReadInteger(Name, 'minimum', -1);
+      Result.FMaximum := config.ReadInteger(Name, 'maximum', -1);
+      Result.FDefault := config.ReadInteger(Name, 'default', -1);
+    end;
+
+    if Result.Kind = akList then
+    begin
+      Result.FValues := SplitString(config.ReadString(Name, 'values', ''), ',', true);
+    end;
+  end;
+const
+  cActions = 'Actions';
+var
+  slTemp, slActions, slTypeRefs: TStrings;
+  actionName, argName: string;
+  action: TAction;
+  i: integer;
+  actionArgument: TActionArgument;
+begin
+  slTemp := TStringList.Create();
+  slTemp.LoadFromStream(Content);
+  config := TMemIniFile.Create('');
+  config.SetStrings(slTemp);
+
+  FVersion := config.ReadInteger(cActions, cVersion, 0);
+  slActions := SplitString(config.ReadString(cActions, 'order', ''), ' ');
+
+  for actionName in slActions do
+  begin
+    if not config.SectionExists(actionName) then
+    begin
+      continue;
+    end;
+
+    action := TAction.Create();
+    action.FName := actionName;
+    slTypeRefs := SplitString(config.ReadString(actionName, 'arguments', ''), ' ', false);
+    for argName in slTypeRefs do
+    begin
+      if not config.SectionExists(argName) then
+      begin
+        action.Free();
+        slTypeRefs.Free();
+        action := nil;
+        break;
+      end;
+
+      actionArgument := FindArgument(argName);
+      if actionArgument = nil then
+      begin
+        actionArgument := LoadArgument(argName);
+        SetLength(argRefs, Length(argRefs) + 1);
+        argRefs[High(argRefs)] := actionArgument;
+      end;
+
+      SetLength(action.FArguments, Length(action.FArguments) + 1);
+      action.FArguments[High(action.FArguments)] := actionArgument;
+    end;
+
+    if action = nil then
+    begin
+      slTypeRefs.Free();
+      continue;
+    end;
+
+    action.FRequired := config.ReadInteger(actionName, 'required', 0);
+    action.FKind := config.ReadString(actionName, 'kind', '');
+    action.FText := config.ReadString(actionName, 'text', '');
+    if action.FText = '' then
+    begin
+      action.FText := Format('Configure "%s" .text field.', [actionName]);
+
+      for i := 0 to slTypeRefs.Count - 1 do
+      begin
+        action.FText := action.FText + Format(' %s=<a id="%s">{%d|%s}</a>', [slTypeRefs[i], slTypeRefs[i], i, slTypeRefs[i]]);
+      end;
+    end;
+
+    SetLength(FActions, Length(FActions) + 1);
+    FActions[High(FActions)] := action;
+    slTypeRefs.Free();
+  end;
+
+  slActions.Free();
+  slTemp.Free();
+  config.Free();
+end;
+
+function TActions.GetAction(Name: string): TAction;
+begin
+  for Result in FActions do
+  begin
+    if Result.Name = Name then
+    begin
+      exit;
+    end;
+  end;
+
+  Result := nil;
+end;
+{$ENDREGION}
+
+{$REGION 'TFilter TFilterSection TFilterBlock DTOs'}
+procedure TFilter.Add(Section: TFilterSection);
+begin
+  SetLength(FSections, Length(FSections) + 1);
+  FSections[High(FSections)] := Section;
+end;
+
+procedure TFilter.Insert(const Index: integer; const Section: TFilterSection);
+var
+  i: integer;
+begin
+  SetLength(FSections, Length(FSections) + 1);
+  for i := Length(FSections) - 2 downto Index do
+  begin
+    FSections[i + 1] := FSections[i];
+  end;
+
+  FSections[Index] := Section;
+end;
+
+procedure TFilter.Delete(const Index: integer);
+var
+  i: integer;
+begin
+  for i := Low(FSections[Index].Blocks) to High(FSections[Index].Blocks) do
+  begin
+    FSections[Index].Blocks[i].Free();
+  end;
+  FSections[Index].Free();
+
+  for i := Index to High(FSections) - 1 do
+  begin
+    FSections[i] := FSections[i + 1];
+  end;
+
+  SetLength(FSections, Length(FSections) - 1);
+end;
+
+procedure TFilter.MoveBlock(const SourceSection, Block, DstSection, DstBlock: integer);
+var
+  src: TFilterBlock;
+begin
+  src := FSections[SourceSection].FBlocks[Block];
+  if SourceSection <> DstSection then
+  begin
+    FSections[SourceSection].Remove(Block);
+    FSections[DstSection].Insert(DstBlock, src);
+    exit;
+  end;
+
+  // мен€ем объекты местами
+  FSections[DstSection].FBlocks[Block] := FSections[DstSection].FBlocks[DstBlock];
+  FSections[DstSection].FBlocks[DstBlock] := src;
+end;
+
+procedure TFilter.MoveSection(const Source, Destination: integer);
+var
+  tmp: TFilterSection;
+begin
+  tmp := FSections[Source];
+  FSections[Source] := FSections[Destination];
+  FSections[Destination] := tmp;
+end;
+
+procedure TFilterSection.Add(Block: TFilterBlock);
+begin
+  SetLength(FBlocks, Length(FBlocks) + 1);
+  FBlocks[High(FBlocks)] := Block;
+end;
+
+procedure TFilterSection.Delete(const Index: integer);
+begin
+  FBlocks[Index].Free();
+  Remove(Index);
+end;
+
+procedure TFilterSection.Remove(const Index: integer);
+var
+  i: integer;
+begin
+  for i := Index to High(FBlocks) - 1 do
+  begin
+    FBlocks[i] := FBlocks[i + 1];
+  end;
+
+  SetLength(FBlocks, Length(FBlocks) - 1);
+end;
+
+procedure TFilterSection.Insert(const Index: integer; const Block: TFilterBlock);
+var
+  i: integer;
+begin
+  SetLength(FBlocks, Length(FBlocks) + 1);
+  for i := Length(FBlocks) - 2 downto Index do
+  begin
+    FBlocks[i + 1] := FBlocks[i];
+  end;
+
+  FBlocks[Index] := Block;
+end;
+
+constructor TFilterBlock.Create();
+begin
+  FComment := TStringList.Create();
+end;
+
+destructor TFilterBlock.Destroy();
+var
+  i: integer;
+begin
+  FComment.Free();
+  for i := Low(FMarkers) to High(FMarkers) do
+  begin
+    FMarkers[i].Free();
+  end;
+
+  for i := Low(FItems) to High(FItems) do
+  begin
+    FItems[i].Free();
+  end;
+end;
+
+procedure TFilterBlock.Delete(const Index: integer);
+var
+  i: integer;
+begin
+  FItems[Index].Free();
+  for i := Index to High(FItems) - 1 do
+  begin
+    FItems[i] := FItems[i + 1];
+  end;
+
+  SetLength(FItems, Length(FItems) - 1);
+end;
+
+procedure TFilterBlock.Insert(const Index: integer; const Item: TFilterItem);
+var
+  i: integer;
+begin
+  SetLength(FItems, Length(FItems) + 1);
+  for i := Length(FItems) - 2 downto Index do
+  begin
+    FItems[i + 1] := FItems[i];
+  end;
+  FItems[Index] := Item;
+end;
+
+function TFilterBlock.Clone(): TFilterBlock;
+var
+  i: integer;
+  slTemp: TStringList;
+begin
+  Result := TFilterBlock.Create();
+  Result.FType := FType;
+  Result.FComment.AddStrings(FComment);
+
+  SetLength(Result.FMarkers, Length(FMarkers));
+  for i := Low(FMarkers) to High(FMarkers) do
+  begin
+    Result.FMarkers[i] := TFilterMarker.Create(FMarkers[i].Name, FMarkers[i].Value);
+  end;
+
+  SetLength(Result.FItems, Length(FItems));
+  for i := Low(FItems) to High(FItems) do
+  begin
+    slTemp := TStringList.Create();
+    slTemp.AddStrings(FItems[i].Arguments);
+    Result.FItems[i] := TFilterItem.Create(FItems[i].Action, slTemp);
+  end;
+end;
+
+constructor TFilterSection.Create();
+begin
+  FComment := TStringList.Create();
+end;
+
+function TFilterBlock.HasMarker(Name: string): boolean;
+var
+  i: integer;
+begin
+  for i := Low(FMarkers) to High(FMarkers) do
+  begin
+    if FMarkers[i].FName = Name then
+    begin
+      Result := True;
+      exit;
+    end;
+  end;
+
+  Result := False;
+end;
+{$ENDREGION}
+
+{$REGION 'TFilter* DTOs'}
+constructor TFilterMarker.Create();
+begin
+end;
+
+constructor TFilterMarker.Create(const Name, Value: string);
+begin
+  FName := Name;
+  FValue := Value;
+end;
+{$ENDREGION}
+
+{$REGION 'TFilterUtils class functions'}
+class function TFilterUtils.IsFilter(Name: string): boolean;
+begin
+  Result := TPath.GetExtension(Name) = cFilterExtension;
+end;
+
+class function TFilterUtils.GetSimpleName(Name: string): string;
+begin
+  Result := TPath.GetFileNameWithoutExtension(Name);
+end;
+
+class function TFilterUtils.GetFileName(SimpleName: string): string;
+begin
+  Result := SimpleName + cFilterExtension;
+end;
+
+class function TFilterUtils.IsOperator(const S: string; const Index: integer): boolean;
+  const
+    aSkip: array[0..3] of string = ('=', '<', '>', '!');
+  var
+    i: integer;
+  begin
+    Result := false;
+    if Index > 0 then
+    begin
+      exit;
+    end;
+
+    for i := Low(aSkip) to High(aSkip) do
+    begin
+      if S.Contains(aSkip[i]) then
+      begin
+        Result := true;
+        exit;
+      end;
+    end;
+  end;
+{$ENDREGION}
+end.
+
