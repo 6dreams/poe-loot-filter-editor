@@ -1,6 +1,6 @@
 unit UnitWinUtils;
 
-interface uses Windows, Messages, Classes;
+interface uses Windows, Messages, Classes, WinApi.ShellApi;
 
 var
   InternalFont: THandle;
@@ -9,6 +9,7 @@ type
   procedure wuShowBalloon(Edit: HWND; Title: string; Text: string;  Icon: TBallonIcon);
   procedure wuLoadInternalFont();
   procedure wuUnloadInternalFont();
+  procedure wuOpenUrl(const Handle: HWND; const URL: string);
 implementation
 const
   EM_SHOWBALLOONTIP = $1503;
@@ -40,6 +41,11 @@ begin
   res := TResourceStream.CreateFromID(HInstance, 1, RT_FONT);
   InternalFont := AddFontMemResourceEx(res.Memory, res.Size, nil, @FontsCount);
   res.Free();
+end;
+
+procedure wuOpenUrl(const Handle: HWND; const URL: string);
+begin
+  ShellExecute(Handle, 'open', PChar(URL), nil, nil, SW_SHOWDEFAULT);
 end;
 
 procedure wuUnloadInternalFont();

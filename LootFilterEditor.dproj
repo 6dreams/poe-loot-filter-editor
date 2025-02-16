@@ -91,7 +91,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <BRCC_IncludePath>Resources;$(BRCC_IncludePath)</BRCC_IncludePath>
         <VerInfo_Build>11</VerInfo_Build>
-        <Debugger_RunParams>-debug</Debugger_RunParams>
+        <Debugger_RunParams>-xdebug</Debugger_RunParams>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>

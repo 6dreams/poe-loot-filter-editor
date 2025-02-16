@@ -1,7 +1,8 @@
 unit UnitItemEditor;
 
 interface uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, UnitFilter,
-  Vcl.StdCtrls, Vcl.ExtCtrls, System.RegularExpressions, UnitArgumentEditor;
+  Vcl.StdCtrls, Vcl.ExtCtrls, System.RegularExpressions, UnitArgumentEditor, UnitWinUtils
+  {$IFDEF DEBUG}, Clipbrd{$ENDIF};
 
 type
 
@@ -17,9 +18,10 @@ TfrmItemEditor = class(TForm)
   procedure cbTypeClick(Sender: TObject);
   procedure bOKClick(Sender: TObject);
   procedure llTextLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
+  procedure gbEditorDblClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
 private
   FActions: TActions;
-  FItem: TFilterItem;
   FArguments: array of TStrings;
   procedure InsertTypes();
   procedure UpdateLinkText();
@@ -50,16 +52,18 @@ begin
   end;
 end;
 
+
 procedure TfrmItemEditor.llTextLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
 var
   i, ArgIndex: integer;
   action: TAction;
   frmEditor: TfrmArgumentEditor;
   updated, value: TStrings;
-  hasMultipleArgs: boolean;
+  hasMultipleArgs, isArgumentExists: boolean;
 begin
-  if LinkType <> sltID then
+  if LinkType = sltURL then
   begin
+    wuOpenUrl(Handle, Link);
     exit;
   end;
 
@@ -80,6 +84,7 @@ begin
   end;
 
   hasMultipleArgs := (action.Arguments[ArgIndex].Kind = akVariadic) or (action.Arguments[ArgIndex].Kind = akColor);
+  isArgumentExists := FArguments[cbType.ItemIndex].Count > ArgIndex;
 
   frmEditor := TfrmArgumentEditor.Create(self);
   value := TStringList.Create();
@@ -90,7 +95,12 @@ begin
       value.Add(FArguments[cbType.ItemIndex][i]);
     end;
   end else begin
-    value.Add(FArguments[cbType.ItemIndex][ArgIndex]);
+    if isArgumentExists then
+    begin
+      value.Add(FArguments[cbType.ItemIndex][ArgIndex]);
+    end else begin
+      value.Add(action.Arguments[ArgIndex].GetDefaultValue());
+    end;
   end;
 
   updated := frmEditor.Edit(action.Arguments[ArgIndex], value);
@@ -111,7 +121,17 @@ begin
     begin
       FArguments[cbType.ItemIndex].AddStrings(updated);
     end else begin
-      FArguments[cbType.ItemIndex][ArgIndex] := updated.Text;
+      if isArgumentExists then
+      begin
+        FArguments[cbType.ItemIndex][ArgIndex] := updated[0];
+      end else begin
+        for i := FArguments[cbType.ItemIndex].Count to ArgIndex - 1 do
+        begin
+          FArguments[cbType.ItemIndex].Add(FActions.Actions[cbType.ItemIndex].Arguments[i].GetDefaultValue());
+        end;
+
+        FArguments[cbType.ItemIndex].Insert(ArgIndex, updated[0]);
+      end;
     end;
   end else begin
     if not hasMultipleArgs then
@@ -122,6 +142,8 @@ begin
       end;
     end;
   end;
+
+  updated.Free();
 
   UpdateLinkText();
 end;
@@ -134,7 +156,7 @@ end;
 procedure TfrmItemEditor.UpdateLinkText();
 var
   action: TAction;
-  i, Index: integer;
+  i, j, Index: integer;
   text, argument, pattern: string;
   match: TMatch;
 begin
@@ -148,7 +170,27 @@ begin
     argument := '';
     if (FArguments[Index].Count - 1 >= i) and (FArguments[Index][i] <> '') then
     begin
-      argument := FArguments[Index][i];
+      case action.Arguments[i].Kind of
+        akVariadic: begin
+          argument := FArguments[Index][i] + ', ...';
+        end;
+        akColor: begin
+          argument := '';
+
+          for j := i to FArguments[Index].Count - 1 do
+          begin
+            argument := argument + FArguments[Index][j];
+
+            if j < FArguments[Index].Count - 1 then
+            begin
+              argument := argument + ', ';
+            end;
+          end;
+        end;
+        else begin
+          argument := FArguments[Index][i];
+        end;
+      end;
     end;
 
     match := TRegEx.Match(text, Format('{%d\|(.*)}', [i + 1]));
@@ -162,13 +204,13 @@ begin
 
     if argument = '' then
     begin
-      argument := action.Arguments[i].Name;
+      argument := Format('[%s]', [action.Arguments[i].Name]);
     end;
 
     text := StringReplace(text, pattern, argument, [rfReplaceAll]);
   end;
 
-  llText.Caption := text;
+  llText.Caption := StringReplace(text, '\n', #10, [rfReplaceAll]);
 end;
 
 procedure TfrmItemEditor.bOKClick(Sender: TObject);
@@ -208,7 +250,6 @@ begin
   Result := nil;
 
   FActions := Actions;
-  FItem := Item;
 
   InsertTypes();
   for i := 0 to cbType.Items.Count - 1 do
@@ -220,15 +261,19 @@ begin
     end;
   end;
 
-  FArguments[i].AddStrings(FItem.Arguments);
+  FArguments[i].AddStrings(Item.Arguments);
   cbTypeClick(nil);
 
   if ShowModal() = mrOk then
   begin
-    FItem.Arguments.Clear();
-    FItem.Arguments.AddStrings(FArguments[cbType.ItemIndex]);
-    Result := FItem;
+    Result := TFilterItem.Create(FActions.Actions[cbType.ItemIndex], TStringList.Create());
+    Result.Arguments.AddStrings(FArguments[cbType.ItemIndex]);
   end;
+end;
+
+procedure TfrmItemEditor.FormCreate(Sender: TObject);
+begin
+  {$IFDEF DEBUG}gbEditor.OnDblClick := gbEditorDblClick;{$ENDIF}
 end;
 
 procedure TfrmItemEditor.FormDestroy(Sender: TObject);
@@ -240,6 +285,13 @@ begin
     FArguments[i].Free();
   end;
 end;
+
+{$IFDEF DEBUG}
+procedure TfrmItemEditor.gbEditorDblClick(Sender: TObject);
+begin
+  Clipboard.AsText := llText.Caption;
+end;
+{$ENDIF}
 
 function TfrmItemEditor.Add(const Actions: TActions): TFilterItem;
 begin
@@ -253,7 +305,8 @@ begin
 
   if ShowModal() = mrOk then
   begin
-    Result := FItem;
+    Result := TFilterItem.Create(FActions.Actions[cbType.ItemIndex], TStringList.Create());
+    Result.Arguments.AddStrings(FArguments[cbType.ItemIndex]);
   end;
 end;
 

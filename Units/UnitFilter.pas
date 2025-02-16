@@ -45,6 +45,11 @@ public
 end;
 
 TArgumentKind = (akInt, akList, akVariadic, akColor, akSockets);
+TActionArgumentDefault = record
+  Number: integer;
+  Text: string;
+  HasDefault: boolean;
+end;
 TActionArgument = class
 private
   FName: string;
@@ -52,7 +57,7 @@ private
   FKind: TArgumentKind;
   FMinimum: integer;
   FMaximum: integer;
-  FDefault: integer;
+  FDefault: TActionArgumentDefault;
   FValues: TStrings;
 public
   constructor Create();
@@ -61,8 +66,9 @@ public
   property Kind: TArgumentKind read FKind;
   property Minimum: integer read FMinimum;
   property Maximum: integer read FMaximum;
-  property DefaultValue: integer read FDefault;
+  property DefaultValue: TActionArgumentDefault read FDefault;
   property Values: TStrings read FValues;
+  function GetDefaultValue(): string;
 end;
 
 TActionAguments = array of TActionArgument;
@@ -194,10 +200,59 @@ begin
 end;
 
 constructor TFilterItem.Create(Action: TAction; Arguments: TStrings);
+var
+  p, i, iArgIndex: integer;
+  val: string;
 begin
   FAction := Action;
   FName := Action.Name;
-  FArguments := Arguments;
+  FArguments := TStringList.Create();
+
+  iArgIndex := 0;
+  for i := Low(Action.Arguments) to High(Action.Arguments) do
+  begin
+    if iArgIndex > Arguments.Count - 1 then
+    begin
+      exit;
+    end;
+
+    val := Arguments[iArgIndex];
+    case Action.Arguments[i].Kind of
+      akVariadic, akColor: begin
+        for p := iArgIndex to Arguments.Count - 1 do
+        begin
+          FArguments.Add(Arguments[p]);
+        end;
+        break;
+      end;
+      akInt: begin
+        if (-2 = StrToIntDef(val, -2)) and Action.Arguments[i].DefaultValue.HasDefault then
+        begin
+          // we count value as invalid, ex. wrong option, so we skip it for next arg
+          val := IntToStr(Action.Arguments[i].FDefault.Number);
+        end else begin
+          Inc(iArgIndex);
+        end;
+
+        FArguments.Add(val);
+      end;
+      akList: begin
+        if Action.Arguments[i].DefaultValue.HasDefault and (Action.Arguments[i].FValues.IndexOf(val) = -1) then
+        begin
+          val := Action.Arguments[i].DefaultValue.Text;
+        end else begin
+          Inc(iArgIndex);
+        end;
+
+        FArguments.Add(val);
+      end;
+      else begin
+        FArguments.Add(val);
+        Inc(iArgIndex);
+      end;
+    end;
+  end;
+  Arguments.Free();
 end;
 
 
@@ -380,7 +435,18 @@ constructor TActionArgument.Create();
 begin
   FMinimum := -1;
   FMaximum := -1;
-  FDefault := -1;
+  FDefault.Number := -1;
+end;
+
+function TActionArgument.GetDefaultValue(): string;
+begin
+  // if argument have no default value, default contains empty string anyway.
+  Result := FDefault.Text;
+
+  if FDefault.HasDefault and (FKind = akInt) then
+  begin
+    Result := IntToStr(FDefault.Number);
+  end;
 end;
 
 constructor TActions.Create(Content: TStream);
@@ -421,12 +487,21 @@ var
     begin
       Result.FMinimum := config.ReadInteger(Name, 'minimum', -1);
       Result.FMaximum := config.ReadInteger(Name, 'maximum', -1);
-      Result.FDefault := config.ReadInteger(Name, 'default', -1);
+      if config.ValueExists(Name, 'default') then
+      begin
+        Result.FDefault.Number := config.ReadInteger(Name, 'default', -1);
+        Result.FDefault.HasDefault := true;
+      end;
     end;
 
     if Result.Kind = akList then
     begin
       Result.FValues := SplitString(config.ReadString(Name, 'values', ''), ',', true);
+      if config.ValueExists(Name, 'default') then
+      begin
+        Result.FDefault.HasDefault := true;
+        Result.FDefault.Text := Trim(config.ReadString(Name, 'default', ''));
+      end;
     end;
   end;
 const

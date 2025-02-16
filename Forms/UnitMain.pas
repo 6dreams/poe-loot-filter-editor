@@ -1,4 +1,4 @@
-unit UnitMain;
+п»їunit UnitMain;
 
 interface uses Winapi.Windows, Winapi.Messages, System.SysUtils, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Menus,
   System.ImageList, Vcl.ImgList, System.Classes, Vcl.StdCtrls,
@@ -58,7 +58,7 @@ TfrmMain = class(TForm)
   procedure pmCreateBlockClick(Sender: TObject);
   procedure lbFilterKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   procedure lbFilterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-    procedure miAboutClick(Sender: TObject);
+  procedure miAboutClick(Sender: TObject);
 private
   DebugEnabled: boolean;
   FilterIsDoubleClicked: boolean;
@@ -79,7 +79,7 @@ var
 implementation
 {$R *.dfm}
 const
-  cAppTitle = '%s%s — Path of Exile Loot Filter Editor';
+  cAppTitle = '%s%s вЂ” Path of Exile Loot Filter Editor';
   FilterItemPadding = 4;
   FilterTextPadding = 2;
   dfHeaderFont = 16;
@@ -117,8 +117,8 @@ begin
 end;
 
 {*
-  Из-за сломанной механики ListBox, мы храним указатель на структуру в тексте элемента списка. Объект добавляется к элементу отдельно, а не сразу из-за чего часть сообщений от системы
-   приходит раньше, и не получается получить объект ссылку на фильтр.
+  РР·-Р·Р° СЃР»РѕРјР°РЅРЅРѕР№ РјРµС…Р°РЅРёРєРё ListBox, РјС‹ С…СЂР°РЅРёРј СѓРєР°Р·Р°С‚РµР»СЊ РЅР° СЃС‚СЂСѓРєС‚СѓСЂСѓ РІ С‚РµРєСЃС‚Рµ СЌР»РµРјРµРЅС‚Р° СЃРїРёСЃРєР°. СњР±СЉРµРєС‚ РґРѕР±Р°РІР»В¤РµС‚СЃВ¤ Рє СЌР»РµРјРµРЅС‚Сѓ РѕС‚РґРµР»СЊРЅРѕ, Р° РЅРµ СЃСЂР°Р·Сѓ РёР·-Р·Р° С‡РµРіРѕ С‡Р°СЃС‚СЊ СЃРѕРѕР±С‰РµРЅРёР№ РѕС‚ СЃРёСЃС‚РµРјС‹
+   РїСЂРёС…РѕРґРёС‚ СЂР°РЅСЊС€Рµ, Рё РЅРµ РїРѕР»СѓС‡Р°РµС‚СЃВ¤ РїРѕР»СѓС‡РёС‚СЊ РѕР±СЉРµРєС‚ СЃСЃС‹Р»РєСѓ РЅР° С„РёР»СЊС‚СЂ.
 *}
 function TfrmMain.GetRefByIndex(const Index: integer): TFilterRef;
 begin
@@ -564,7 +564,7 @@ begin
   end;
 
   Index := lbFilter.ItemAtPos(TPoint.Create(X, Y), False);
-  // сам в себя нельзя
+  // СЃР°Рј РІ СЃРµР±В¤ РЅРµР»СЊР·В¤
   Accept := (Index < lbFilter.Items.Count) and (Index > -1) and (Index <> lbFilter.ItemIndex);
 
   if Accept then
@@ -572,7 +572,7 @@ begin
     src := GetRefByIndex(lbFilter.ItemIndex);
     dst := GetRefByIndex(Index);
 
-    // не принимаем секцию в саму секцию и её блоки, и блок в секцию в которой он и находится
+    // РЅРµ РїСЂРёРЅРёРјР°РµРј СЃРµРєС†РёСЋ РІ СЃР°РјСѓ СЃРµРєС†РёСЋ Рё РµР„ Р±Р»РѕРєРё, Рё Р±Р»РѕРє РІ СЃРµРєС†РёСЋ РІ РєРѕС‚РѕСЂРѕР№ РѕРЅ Рё РЅР°С…РѕРґРёС‚СЃСЏ
     if src.IsSection() or (src.IsBlock() and dst.IsSection()) then
     begin
       Accept := src.SectionIndex <> dst.SectionIndex;
@@ -811,6 +811,5 @@ begin
   end;
   actionStream.Free();
 end;
-
 end.
 

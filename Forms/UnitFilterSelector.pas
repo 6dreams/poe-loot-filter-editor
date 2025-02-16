@@ -13,7 +13,7 @@ TfrmFilterSelector = class(TForm)
   procedure bReloadClick(Sender: TObject);
   procedure lbFiltersDblClick(Sender: TObject);
   procedure bSelectClick(Sender: TObject);
-    procedure cbGameVersionChange(Sender: TObject);
+  procedure cbGameVersionChange(Sender: TObject);
 private
   function GetGamePath(): string;
   procedure GetFilters();

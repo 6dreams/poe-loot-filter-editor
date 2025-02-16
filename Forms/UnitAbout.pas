@@ -1,7 +1,7 @@
 unit UnitAbout;
 
 interface uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, UnitUtils, ShellApi, System.Math;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, UnitUtils, System.Math, UnitWinUtils;
 
 type
 TAboutItem = record
@@ -55,10 +55,10 @@ begin
   SetLength(FItems, 5);
   FItems[0].Update(15, 5, clWhite, 'Path of Exile Filter Editor', true);
   FItems[1].Update(38, 41, clRed, 'Chaos Orb');
-  FItems[2].Update(150, 40, clFuchsia, Names[RandomRange(0, 2)]);
+  FItems[2].Update(150, 40, clFuchsia, Names[RandomRange(0, 3)]);
   FItems[3].Update(52, 76, clGray, 'Scroll of Wisdom');
   FItems[3].Size := 14;
-  FItems[4].Update(238, 76, clFuchsia, Names[RandomRange(0, 2)]);
+  FItems[4].Update(238, 76, clFuchsia, Names[RandomRange(0, 3)]);
 
   DrawLogo();
 end;
@@ -106,7 +106,7 @@ end;
 procedure TfrmAbout.llTextLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
 begin
   if LinkType <> sltURL then exit;
-  ShellExecute(Handle, 'open', PChar(Link), nil, nil, SW_SHOWDEFAULT);
+  wuOpenUrl(Handle, Link);
 end;
 
 procedure TfrmAbout.DrawLogo();

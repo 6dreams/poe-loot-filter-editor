@@ -54,44 +54,9 @@ var
 implementation
 {$R *.dfm}
 
-procedure DrawOpacityImage(ACanvas: TCanvas; X, Y: Integer; Image: TBitmap; Opacity: Byte);
-var
-  I, J: Integer;
-  Pixels: PRGBQuad;
-  ColorRgb: Integer;
-  ColorR, ColorG, ColorB: Byte;
-begin
-
-    ColorRgb :=  ColorToRGB(Image.TransparentColor);
-    ColorR := GetRValue(ColorRgb);
-    ColorG := GetGValue(ColorRgb);
-    ColorB := GetBValue(ColorRgb);
-
-    for I := 0 to Image.Height - 1 do
-    begin
-      Pixels := PRGBQuad(Image.ScanLine[I]);
-      for J := 0 to Image.Width - 1 do
-      begin
-        with Pixels^ do
-        begin
-          if (rgbRed = ColorR) and (rgbGreen = ColorG) and (rgbBlue = ColorB) then
-            rgbReserved := 0
-          else
-            rgbReserved := Opacity;
-          // must pre-multiply the pixel with its alpha channel before drawing
-          rgbRed := (rgbRed * rgbReserved) div $FF;
-          rgbGreen := (rgbGreen * rgbReserved) div $FF;
-          rgbBlue := (rgbBlue * rgbReserved) div $FF;
-        end;
-        Inc(Pixels);
-      end;
-    end;
-
-    ACanvas.Draw(X, Y, Image, 255);
-end;
-
-
 procedure TfrmArgumentEditor.bOKClick(Sender: TObject);
+const
+  ErrTitle: string = 'Error';
 var
   iTemp: integer;
 begin
@@ -100,23 +65,33 @@ begin
       iTemp := StrToIntDef(tIntEditor.Text, -1);
       if (FArgument.Minimum <> -1) and (FArgument.Maximum <> -1) and ((iTemp < FArgument.Minimum) or (iTemp > FArgument.Maximum)) then
       begin
-        wuShowBalloon(tIntEditor.Handle, 'Error', Format('Value must be between "%d" and "%d"', [FArgument.Minimum, FArgument.Maximum]), biError);
+        wuShowBalloon(tIntEditor.Handle, ErrTitle, Format('Value must be between "%d" and "%d"', [FArgument.Minimum, FArgument.Maximum]), biError);
         exit;
       end;
 
       if (FArgument.Minimum <> -1) and (iTemp < FArgument.Minimum) then
       begin
-        wuShowBalloon(tIntEditor.Handle, 'Error', Format('Value must be greater than "%d"', [FArgument.Minimum]), biError);
+        wuShowBalloon(tIntEditor.Handle, ErrTitle, Format('Value must be greater than "%d"', [FArgument.Minimum]), biError);
         exit;
       end;
 
       if (FArgument.Maximum <> -1) and (iTemp > FArgument.Maximum) then
       begin
-        wuShowBalloon(tIntEditor.Handle, 'Error', Format('Value must be less than "%d"', [FArgument.Maximum]), biError);
+        wuShowBalloon(tIntEditor.Handle, ErrTitle, Format('Value must be less than "%d"', [FArgument.Maximum]), biError);
+        exit;
+      end;
+    end;
+    akVariadic: begin
+      if lbVariadicEditor.Items.Count = 0 then
+      begin
+        MessageBox(Handle, PChar(Format('%s cannot be empty', [FArgument.Name])), PChar(ErrTitle), MB_ICONERROR);
         exit;
       end;
     end;
   end;
+
+  ModalResult := mrOk;
+  CloseModal();
 end;
 
 function TfrmArgumentEditor.Edit(const Argument: TActionArgument; const Value: TStrings): TStrings;
@@ -172,7 +147,7 @@ begin
     end;
     akList: begin
       lblListEditor.Caption := Format('Select value for %s:', [Argument.Name]);
-      cbListEditor.Items.AddStrings(Value);
+      cbListEditor.Items.AddStrings(Argument.Values);
 
       i := -1;
       if Value.Count > 0 then

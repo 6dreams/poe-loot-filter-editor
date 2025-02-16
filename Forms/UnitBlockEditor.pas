@@ -165,7 +165,7 @@ var
 begin
   if lbContent.ItemIndex = -1 then
   begin
-    target := lbContent.Items.Count - 1;
+    target := lbContent.Items.Count;
   end else begin
     target := lbContent.ItemIndex + 1;
   end;
