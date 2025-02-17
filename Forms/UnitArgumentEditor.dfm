@@ -236,8 +236,9 @@ object frmArgumentEditor: TfrmArgumentEditor
       Top = 43
       Width = 543
       Height = 21
+      CharCase = ecUpperCase
+      MaxLength = 7
       TabOrder = 0
-      Text = 'tSocketsValue'
     end
   end
   object cdColorSelector: TColorDialog

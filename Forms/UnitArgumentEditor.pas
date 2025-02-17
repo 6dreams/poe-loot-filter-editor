@@ -57,8 +57,25 @@ implementation
 procedure TfrmArgumentEditor.bOKClick(Sender: TObject);
 const
   ErrTitle: string = 'Error';
+const
+  AllowedChars: array[0..5] of string = ('R', 'G', 'B', 'A', 'D', 'W');
+  function IsCharAllowed(const V: string): boolean;
+  var
+    i: integer;
+  begin
+    Result := false;
+    for i := Low(AllowedChars) to High(AllowedChars) do
+    begin
+      if AllowedChars[i] = V then
+      begin
+        Result := true;
+      end;
+    end;
+  end;
 var
   iTemp: integer;
+  i: Integer;
+  s: string;
 begin
   case FArgument.Kind of
     akInt: begin
@@ -85,6 +102,30 @@ begin
       if lbVariadicEditor.Items.Count = 0 then
       begin
         MessageBox(Handle, PChar(Format('%s cannot be empty', [FArgument.Name])), PChar(ErrTitle), MB_ICONERROR);
+        exit;
+      end;
+    end;
+    akSockets: begin
+      for i := 1 to Length(tSocketsValue.Text) do
+      begin
+        s := Copy(tSocketsValue.Text, i, 1);
+        if not (IsCharAllowed(s) or ((StrToIntDef(s, -1) <> -1) and (i = 1))) then
+        begin
+          wuShowBalloon(tSocketsValue.Handle, 'Error', 'Socket group can contain only numbers and socket colors (R, G, B, A, D, W), example: 2RGG', biError);
+          exit;
+        end;
+      end;
+
+      i := StrToIntDef(Copy(tSocketsValue.Text, 0, 1), -1);
+      if (i <> -1) and (i < 0) and (i > 6) then
+      begin
+        wuShowBalloon(tSocketsValue.Handle, 'Error', 'Socket count in group must be between "1" and "6"', biError);
+        exit;
+      end;
+
+      if Length(tSocketsValue.Text) > 6 + Ord(i <> -1) then
+      begin
+        wuShowBalloon(tSocketsValue.Handle, 'Error', 'Socket group mask is too big', biError);
         exit;
       end;
     end;
@@ -173,7 +214,7 @@ begin
     end;
     akSockets: begin
       lblSocketsValue.Caption := Format('Enter %s:', [Argument.Name]);
-      tSocketsValue.Text := Value.Text;
+      tSocketsValue.Text := Value[0];
     end;
     akVariadic: begin
       lblVariadicEditor.Caption := Format('Values for %s:', [Argument.Name]);
