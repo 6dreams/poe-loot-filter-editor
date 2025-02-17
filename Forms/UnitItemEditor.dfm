@@ -75,7 +75,6 @@ object frmItemEditor: TfrmItemEditor
       ParentFont = False
       TabOrder = 0
       OnLinkClick = llTextLinkClick
-      ExplicitHeight = 81
     end
   end
   object bOK: TButton

@@ -19,7 +19,7 @@ TfrmItemEditor = class(TForm)
   procedure bOKClick(Sender: TObject);
   procedure llTextLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
   procedure gbEditorDblClick(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
+  procedure FormCreate(Sender: TObject);
 private
   FActions: TActions;
   FArguments: array of TStrings;
@@ -187,6 +187,9 @@ begin
             end;
           end;
         end;
+        akList: begin
+          argument := action.Arguments[i].GetNameByValue(FArguments[Index][i]);
+        end
         else begin
           argument := FArguments[Index][i];
         end;

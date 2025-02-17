@@ -1,9 +1,9 @@
-unit UnitFilter;
+п»їunit UnitFilter;
 
 interface uses System.IOUtils, System.Classes, System.SysUtils, IniFiles, UnitUtils;
 
 {***
-  Ожидаемая структура фильтра:
+  СњР¶РёРґР°РµРјР°В¤ СЃС‚СЂСѓРєС‚СѓСЂР° С„РёР»СЊС‚СЂР°:
    #$## // configuration opener
    # configuration // application config
    #$## // configuration closer
@@ -20,17 +20,17 @@ interface uses System.IOUtils, System.Classes, System.SysUtils, IniFiles, UnitUt
    Hide // filter content
        BaseType "BadItem"
 
-  Основные правила:
-   * конфигурация бывает только в одном экземпляре
-   * маркеров можно быть много на одной строке, их формат: marker_name:marker_value; marker2_name;
-   * маркеры применяемы только к блоку
-   * в случае, если фильтр не был создан в программе, секция будет одна
+  РѕСЃРЅРѕРІРЅС‹Рµ РїСЂР°РІРёР»Р°:
+   * РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ Р±С‹РІР°РµС‚ С‚РѕР»СЊРєРѕ РІ РѕРґРЅРѕРј СЌРєР·РµРјРїР»СЏСЂРµ
+   * РјР°СЂРєРµСЂРѕРІ РјРѕР¶РЅРѕ Р±С‹С‚СЊ РјРЅРѕРіРѕ РЅР° РѕРґРЅРѕР№ СЃС‚СЂРѕРєРµ, РёС… С„РѕСЂРјР°С‚: marker_name:marker_value; marker2_name;
+   * РјР°СЂРєРµСЂС‹ РїСЂРёРјРµРЅСЏРµРјС‹ С‚РѕР»СЊРєРѕ Рє Р±Р»РѕРєСѓ
+   * РІ СЃР»СѓС‡Р°Рµ, РµСЃР»Рё С„РёР»СЊС‚СЂ РЅРµ Р±С‹Р» СЃРѕР·РґР°РЅ РІ РїСЂРѕРіСЂР°РјРјРµ, СЃРµРєС†РёСЏ Р±СѓРґРµС‚ РѕРґРЅР°
 
 ***}
 
 type
 TFilterConfig = class
-  // пока пусто
+  // РїРѕРєР° РїСѓСЃС‚Рѕ
 end;
 
 TFilterMarker = class
@@ -58,7 +58,7 @@ private
   FMinimum: integer;
   FMaximum: integer;
   FDefault: TActionArgumentDefault;
-  FValues: TStrings;
+  FValues, FValueNames, FDisplayNameCache: TStrings;
 public
   constructor Create();
   property Name: string read FName;
@@ -68,6 +68,10 @@ public
   property Maximum: integer read FMaximum;
   property DefaultValue: TActionArgumentDefault read FDefault;
   property Values: TStrings read FValues;
+  property ValueNames: TStrings read FValueNames;
+  function GetDisplayNames(): TStrings;
+  function GetValueByName(const Name: string): string;
+  function GetNameByValue(const Value: string): string;
   function GetDefaultValue(): string;
 end;
 
@@ -151,7 +155,7 @@ TFilterSections = array of TFilterSection;
 TFilter = class(TObject)
 private
   FFileName: string;
-  //sFConfig: TFilterConfig;
+  //FConfig: TFilterConfig;
   FSections: TFilterSections;
   FActions: TActions;
 public
@@ -329,7 +333,7 @@ begin
   begin
     lineTrim := Trim(line);
 
-    // пропускаем пустую строку
+    // РїСЂРѕРїСѓСЃРєР°РµРј РїСѓСЃС‚СѓСЋ СЃС‚СЂРѕРєСѓ
     if lineTrim = '' then
     begin
       continue;
@@ -449,6 +453,73 @@ begin
   end;
 end;
 
+function TActionArgument.GetDisplayNames(): TStrings;
+var
+  i: integer;
+begin
+  if FDisplayNameCache <> nil then
+  begin
+    Result := FDisplayNameCache;
+    exit;
+  end;
+
+  FDisplayNameCache := TStringList.Create();
+
+  if FValueNames = nil then
+  begin
+    FDisplayNameCache.AddStrings(FValues);
+  end else begin
+    // we can't use duplicates prop, it works only with sorted. we dont want sort.
+    for i := 0 to FValueNames.Count - 1 do
+    begin
+      if FDisplayNameCache.IndexOf(FValueNames[i]) = -1 then
+      begin
+        FDisplayNameCache.Add(FValueNames[i]);
+      end;
+    end;
+  end;
+
+  Result := FDisplayNameCache;
+end;
+
+function TActionArgument.GetValueByName(const Name: string): string;
+var
+  i: integer;
+begin
+  if (FValueNames = nil) or (FValues.IndexOf(Name) <> -1) then
+  begin
+    Result := Name;
+    exit;
+  end;
+
+  i := FValueNames.IndexOf(Name);
+  if i <> -1 then
+  begin
+    Result := FValues[i];
+  end else begin
+    Result := FValues[0];
+  end;
+end;
+
+function TActionArgument.GetNameByValue(const Value: string): string;
+var
+  i: integer;
+begin
+  if FValueNames = nil then
+  begin
+    Result := Value;
+    exit;
+  end;
+
+  i := FValues.IndexOf(Value);
+  if i = -1 then
+  begin
+    Result := FValueNames[0];
+  end else begin
+    Result := FValueNames[i];
+  end;
+end;
+
 constructor TActions.Create(Content: TStream);
 var
   argRefs: array of TActionArgument;
@@ -497,6 +568,12 @@ var
     if Result.Kind = akList then
     begin
       Result.FValues := SplitString(config.ReadString(Name, 'values', ''), ',', true);
+      Result.FValueNames := SplitString(config.ReadString(Name, 'valueNames', ''), ',', true, true);
+      if (Result.FValueNames <> nil) and (Result.FValues.Count <> Result.FValueNames.Count) then
+      begin
+        Result.FValueNames.Free();
+        Result.FValueNames := nil;
+      end;
       if config.ValueExists(Name, 'default') then
       begin
         Result.FDefault.HasDefault := true;
@@ -646,7 +723,7 @@ begin
     exit;
   end;
 
-  // меняем объекты местами
+  // РјРµРЅВ¤РµРј РѕР±СЉРµРєС‚С‹ РјРµСЃС‚Р°РјРё
   FSections[DstSection].FBlocks[Block] := FSections[DstSection].FBlocks[DstBlock];
   FSections[DstSection].FBlocks[DstBlock] := src;
 end;

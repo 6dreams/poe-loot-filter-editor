@@ -147,12 +147,12 @@ begin
     end;
     akList: begin
       lblListEditor.Caption := Format('Select value for %s:', [Argument.Name]);
-      cbListEditor.Items.AddStrings(Argument.Values);
+      cbListEditor.Items.AddStrings(Argument.GetDisplayNames());
 
       i := -1;
       if Value.Count > 0 then
       begin
-        i := Argument.Values.IndexOf(Value[0]);
+        i := cbListEditor.Items.IndexOf(Argument.GetNameByValue(Value[0])); // Argument.Values.IndexOf(Value[0]);
       end;
 
       cbListEditor.ItemIndex := Max(0, i);
@@ -189,7 +189,7 @@ begin
         Result.Add(tIntEditor.Text);
       end;
       akList: begin
-        Result.Add(cbListEditor.Text);
+        Result.Add(Argument.GetValueByName(cbListEditor.Text));
       end;
       akVariadic: begin
         Result.AddStrings(lbVariadicEditor.Items);

@@ -564,7 +564,7 @@ begin
   end;
 
   Index := lbFilter.ItemAtPos(TPoint.Create(X, Y), False);
-  // сам в себ¤ нельз¤
+  // сам в себ¤ нельзя
   Accept := (Index < lbFilter.Items.Count) and (Index > -1) and (Index <> lbFilter.ItemIndex);
 
   if Accept then
@@ -572,7 +572,7 @@ begin
     src := GetRefByIndex(lbFilter.ItemIndex);
     dst := GetRefByIndex(Index);
 
-    // не принимаем секцию в саму секцию и еЄ блоки, и блок в секцию в которой он и находится
+    // не принимаем секцию в саму секцию и её блоки, и блок в секцию в которой он и находится
     if src.IsSection() or (src.IsBlock() and dst.IsSection()) then
     begin
       Accept := src.SectionIndex <> dst.SectionIndex;
