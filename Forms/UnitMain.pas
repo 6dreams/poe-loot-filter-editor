@@ -693,8 +693,7 @@ begin
   end;
 end;
 
-procedure TfrmMain.lbFilterKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+procedure TfrmMain.lbFilterKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
   if Key = VK_DELETE then
   begin

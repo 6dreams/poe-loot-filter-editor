@@ -39,8 +39,16 @@ object frmArgumentEditor: TfrmArgumentEditor
       Top = 33
       Width = 545
       Height = 134
-      ItemHeight = 13
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -13
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentFont = False
+      PopupMenu = pmVariadic
       TabOrder = 0
+      OnDblClick = lbVariadicEditorDblClick
+      OnKeyDown = lbVariadicEditorKeyDown
     end
   end
   object gbIntValue: TGroupBox
@@ -261,5 +269,22 @@ object frmArgumentEditor: TfrmArgumentEditor
       'ColorP=FFFFFFFF')
     Left = 392
     Top = 365
+  end
+  object pmVariadic: TPopupMenu
+    OnPopup = pmVariadicPopup
+    Left = 528
+    Top = 64
+    object pmAdd: TMenuItem
+      Caption = 'Add'
+      OnClick = pmAddClick
+    end
+    object pmEdit: TMenuItem
+      Caption = 'Edit'
+      OnClick = pmEditClick
+    end
+    object pmDelete: TMenuItem
+      Caption = 'Delete'
+      OnClick = pmDeleteClick
+    end
   end
 end

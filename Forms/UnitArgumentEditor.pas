@@ -1,7 +1,7 @@
 unit UnitArgumentEditor;
 
-interface uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, UnitFilter,
-  Vcl.StdCtrls, UnitWinUtils, Vcl.ComCtrls, System.Math, Vcl.ExtCtrls, UnitUtils;
+interface uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.StdCtrls, Vcl.ComCtrls, System.Math, Vcl.ExtCtrls, Vcl.Menus, UnitUtils, UnitWinUtils, UnitFilter;
 
 type
 TfrmArgumentEditor = class(TForm)
@@ -33,11 +33,21 @@ TfrmArgumentEditor = class(TForm)
   tSocketsValue: TEdit;
   lblSocketsValue: TLabel;
   bSelectColor: TButton;
+  pmVariadic: TPopupMenu;
+  pmAdd: TMenuItem;
+  pmEdit: TMenuItem;
+  pmDelete: TMenuItem;
   procedure FormCreate(Sender: TObject);
   procedure bOKClick(Sender: TObject);
   procedure FormDestroy(Sender: TObject);
   procedure ColorChange(Sender: TObject);
   procedure bSelectColorClick(Sender: TObject);
+  procedure pmVariadicPopup(Sender: TObject);
+  procedure pmDeleteClick(Sender: TObject);
+  procedure lbVariadicEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+  procedure lbVariadicEditorDblClick(Sender: TObject);
+  procedure pmAddClick(Sender: TObject);
+  procedure pmEditClick(Sender: TObject);
 private
   FArgument: TActionArgument;
   FFloor: TBitmap;
@@ -297,6 +307,71 @@ begin
   begin
     FFloor.Free();
   end;
+end;
+
+procedure TfrmArgumentEditor.lbVariadicEditorDblClick(Sender: TObject);
+begin
+  if lbVariadicEditor.Items.Count = 0 then
+  begin
+    pmAddClick(Sender);
+    exit;
+  end;
+
+  pmEditClick(Sender);
+end;
+
+procedure TfrmArgumentEditor.lbVariadicEditorKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+  if Key = VK_DELETE then
+  begin
+    pmDeleteClick(Sender);
+  end;
+end;
+
+procedure TfrmArgumentEditor.pmAddClick(Sender: TObject);
+var
+  sTemp: string;
+begin
+  sTemp := Trim(InputBox('Value', Format('%s:', [Caption]), ''));
+
+  if sTemp = '' then
+  begin
+    exit;
+  end;
+
+  lbVariadicEditor.Items.Insert(lbVariadicEditor.ItemIndex, sTemp);
+end;
+
+procedure TfrmArgumentEditor.pmDeleteClick(Sender: TObject);
+begin
+  lbVariadicEditor.DeleteSelected();
+end;
+
+procedure TfrmArgumentEditor.pmEditClick(Sender: TObject);
+var
+  sTemp: string;
+begin
+  if lbVariadicEditor.ItemIndex = -1 then
+  begin
+    exit;
+  end;
+
+  sTemp := Trim(InputBox('Value', Format('%s:', [Caption]), lbVariadicEditor.Items[lbVariadicEditor.ItemIndex]));
+
+  if sTemp = '' then
+  begin
+    exit;
+  end;
+
+  lbVariadicEditor.Items[lbVariadicEditor.ItemIndex] := sTemp;
+end;
+
+procedure TfrmArgumentEditor.pmVariadicPopup(Sender: TObject);
+begin
+  pmAdd.Default := lbVariadicEditor.Items.Count = 0;
+  pmEdit.Default := lbVariadicEditor.ItemIndex <> -1;
+  pmEdit.Enabled := lbVariadicEditor.ItemIndex <> -1;
+  pmDelete.Enabled := pmEdit.Enabled;
 end;
 
 procedure TfrmArgumentEditor.bSelectColorClick(Sender: TObject);
