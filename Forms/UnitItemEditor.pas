@@ -20,9 +20,11 @@ TfrmItemEditor = class(TForm)
   procedure llTextLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
   procedure gbEditorDblClick(Sender: TObject);
   procedure FormCreate(Sender: TObject);
+  procedure OnSearch(Text: string);
 private
   FActions: TActions;
   FArguments: array of TStrings;
+  FSearch: TTimedSearch;
   procedure InsertTypes();
   procedure UpdateLinkText();
   function GetActionById(const Index: integer): TAction;
@@ -277,6 +279,37 @@ end;
 procedure TfrmItemEditor.FormCreate(Sender: TObject);
 begin
   {$IFDEF DEBUG}gbEditor.OnDblClick := gbEditorDblClick;{$ENDIF}
+  FSearch := TTimedSearch.Create();
+  FSearch.OnSearch := OnSearch;
+
+  cbType.OnKeyPress := FSearch.Handler;
+  OnKeyPress := FSearch.Handler;
+  bOK.OnKeyPress := FSearch.Handler;
+  bCancel.OnKeyPress := FSearch.Handler;
+end;
+
+procedure TfrmItemEditor.OnSearch(Text: string);
+var
+  i: integer;
+  sl: TStringList;
+begin
+  {$IFDEF DEBUG}OutputDebugString(PChar(Format('Search: `%s`', [Text])));{$ENDIF}
+
+  sl := TStringList.Create();
+  for i := Low(FActions.Actions) to High(FActions.Actions) do
+  begin
+    sl.Add(FActions.Actions[i].Name);
+  end;
+
+  i := FSearch.GetMatched(Text, sl);
+  sl.Free();
+
+  if i = -1 then
+  begin
+    exit;
+  end;
+
+  cbType.ItemIndex := i;
 end;
 
 procedure TfrmItemEditor.FormDestroy(Sender: TObject);
@@ -287,6 +320,7 @@ begin
   begin
     FArguments[i].Free();
   end;
+  FSearch.Free();
 end;
 
 {$IFDEF DEBUG}
