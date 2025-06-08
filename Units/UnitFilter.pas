@@ -3,7 +3,7 @@
 interface uses System.IOUtils, System.Classes, System.SysUtils, IniFiles, UnitUtils;
 
 {***
-  ќжидаема¤ структура фильтра:
+  Ожидаемая структура фильтра:
    #$## // configuration opener
    # configuration // application config
    #$## // configuration closer
@@ -41,7 +41,7 @@ public
   constructor Create(); overload;
   constructor Create(const Name, Value: string); overload;
   property Name: string read FName;
-  property Value: string read FValue;
+  property Value: string read FValue write FValue;
 end;
 
 TArgumentKind = (akInt, akList, akVariadic, akColor, akSockets);
@@ -129,6 +129,8 @@ public
   procedure Insert(const Index: integer; const Item: TFilterItem);
   function Clone(): TFilterBlock;
   function HasMarker(Name: string): boolean;
+  procedure UpdateMarker(const Name, Value: string);
+  procedure DeleteMarker(const Name: string);
   property Kind: string read FType write FType;
   property Comment: TStrings read FComment;
   property Items: TFilterItems read FItems;
@@ -294,6 +296,21 @@ procedure TFilter.Parse(Data: TStrings);
     end;
   end;
 
+  function ParseMarker(const Text: string): TFilterMarker;
+  var
+    data: TArray<string>;
+  begin
+    data := Text.Split([':'], 2);
+
+    if Length(data) = 1 then
+    begin
+      Result := TFilterMarker.Create(data[0], '');
+      exit;
+    end;
+
+    Result := TFilterMarker.Create(data[0], data[1]);
+  end;
+
   function GetCommentText(Text: string): string;
   begin
     Result := Trim(TrimString(Text, '#'));
@@ -319,16 +336,20 @@ var
   end;
 var
   line, lineTrim, temp: string;
-  inSection, inConfig: boolean;
-  collectedComments: TStrings;
+  inSection, inConfig, inDisabledBlock: boolean;
+  collectedComments: TStringList;
+  collectedMarkers: TStringList;
   actionData: TParsedItem;
+  i: integer;
   action: TAction;
 begin
   inSection := false;
   inConfig := false;
+  inDisabledBlock := false;
   currentSection := nil;
   currentBlock := nil;
   collectedComments := TStringList.Create();
+  collectedMarkers := TStringList.Create();
   for line in Data do
   begin
     lineTrim := Trim(line);
@@ -336,6 +357,10 @@ begin
     // пропускаем пустую строку
     if lineTrim = '' then
     begin
+      if inDisabledBlock then
+      begin
+        inDisabledBlock := false;
+      end;
       continue;
     end;
 
@@ -387,8 +412,25 @@ begin
 
     if lineTrim.StartsWith(cfPrefMarker) then
     begin
-      // todo: there we must parse `disabled` marker, and after re-parse all text as uncommented
+      temp := Trim(Copy(lineTrim, Length(cfPrefMarker)));
+      collectedMarkers.Add(temp);
+
+      if temp = TFilterBlock.mDisabled then
+      begin
+        inDisabledBlock := true;
+      end;
+
       continue;
+    end;
+
+    if inDisabledBlock then
+    begin
+      if lineTrim.StartsWith(cfPrefComment) then
+      begin
+        lineTrim := Copy(lineTrim, Length(cfPrefComment) + 1);
+      end else begin
+        inDisabledBlock := false;
+      end;
     end;
 
     if lineTrim.StartsWith(cfPrefComment) then
@@ -414,6 +456,13 @@ begin
         currentSection.Add(currentBlock);
       end;
 
+      SetLength(currentBlock.FMarkers, collectedMarkers.Count);
+      for i := 0 to collectedMarkers.Count - 1 do
+      begin
+        currentBlock.FMarkers[i] := ParseMarker(Trim(collectedMarkers[i]));
+      end;
+      collectedMarkers.Clear();
+
       currentBlock.FType := Copy(lineTrim, 0, 4);
       currentBlock.FComment.AddStrings(collectedComments);
       collectedComments.Clear();
@@ -429,6 +478,9 @@ begin
       currentBlock.FItems[High(currentBlock.FItems)] := TFilterItem.Create(action, actionData.Arguments);
     end;
   end;
+
+  collectedComments.Free();
+  collectedMarkers.Free();
 
   lineTrim := '';
 end;
@@ -864,6 +916,52 @@ begin
 
   Result := False;
 end;
+
+procedure TFilterBlock.UpdateMarker(const Name, Value: string);
+var
+  i: Integer;
+begin
+  for i := Low(FMarkers) to High(FMarkers) do
+  begin
+    if FMarkers[i].Name = Name then
+    begin
+      FMarkers[i].Value := Value;
+      exit;
+    end;
+  end;
+
+  i := Length(FMarkers);
+  SetLength(FMarkers, i + 1);
+  FMarkers[i] := TFilterMarker.Create(Name, Value);
+end;
+
+procedure TFilterBlock.DeleteMarker(const Name: string);
+var
+  delete: boolean;
+  i: integer;
+begin
+  for i := Low(FMarkers) to High(FMarkers) do
+  begin
+    if delete then
+    begin
+      FMarkers[i - 1] := FMarkers[i];
+    end;
+
+    if FMarkers[i].FName = Name then
+    begin
+      delete := true;
+      FMarkers[i].Free();
+    end;
+  end;
+
+  if not delete then
+  begin
+    exit;
+  end;
+
+  SetLength(FMarkers, Length(FMarkers) - 1);
+end;
+
 {$ENDREGION}
 
 {$REGION 'TFilter* DTOs'}

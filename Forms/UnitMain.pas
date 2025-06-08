@@ -591,6 +591,7 @@ var
   icon: TIcon;
   s: string;
   item: TFilterItem;
+  defColor: TColor;
 begin
   ref := GetRefByIndex(Index);
 
@@ -637,6 +638,12 @@ begin
   ilIcons.GetIcon(Ord(ref.Block.Kind = 'Show'), icon);
   c.Draw(Rect.Left + FilterItemPadding, Rect.Top + FilterItemPadding, icon);
   icon.Free();
+
+  defColor := c.Font.Color;
+  if ref.Block.HasMarker(TFilterBlock.mDisabled) then
+  begin
+    c.Font.Color := clGrayText;
+  end;
 
   c.Font.Size := dfBaseFont;
   c.Font.Style := [fsBold];
@@ -691,6 +698,8 @@ begin
 
     Inc(y, c.TextExtent(s).Height);
   end;
+
+  c.Font.Color := defColor;
 end;
 
 procedure TfrmMain.lbFilterKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);

@@ -90,8 +90,9 @@
         <VerInfo_AutoIncVersion>true</VerInfo_AutoIncVersion>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <BRCC_IncludePath>Resources;$(BRCC_IncludePath)</BRCC_IncludePath>
-        <VerInfo_Build>11</VerInfo_Build>
-        <Debugger_RunParams>-xdebug</Debugger_RunParams>
+        <VerInfo_Build>12</VerInfo_Build>
+        <Debugger_RunParams>-debug</Debugger_RunParams>
+        <VerInfo_Keys>CompanyName=6dreams;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.12;InternalName=;LegalCopyright=.fry;LegalTrademarks=;OriginalFilename=;ProgramID=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>

@@ -25,7 +25,7 @@ object frmMain: TfrmMain
     Height = 394
     Style = lbOwnerDrawVariable
     Anchors = [akLeft, akTop, akRight, akBottom]
-    DoubleBuffered = False
+    DoubleBuffered = True
     DragMode = dmAutomatic
     IntegralHeight = True
     ParentDoubleBuffered = False

@@ -114,6 +114,12 @@ begin
   end else begin
     FBlock.Comment.Clear();
     FBlock.Comment.AddStrings(tDescription.Lines);
+    if cbDisabled.Checked then
+    begin
+      FBlock.UpdateMarker(TFilterBlock.mDisabled, '');
+    end else begin
+      FBlock.DeleteMarker(TFilterBlock.mDisabled);
+    end;
   end;
 
   Result := FBlock;
