@@ -232,9 +232,9 @@ begin
     end;
   end;
 
+  Result := TStringList.Create();
   if ShowModal() = mrOk then
   begin
-    Result := TStringList.Create();
     case Argument.Kind of
       akInt: begin
         Result.Add(tIntEditor.Text);
@@ -259,8 +259,9 @@ begin
         Result.Add(tSocketsValue.Text);
       end;
     end;
+  end else begin
+    Result.AddStrings(Value);
   end;
-
 end;
 procedure TfrmArgumentEditor.FormCreate(Sender: TObject);
 begin
