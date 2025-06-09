@@ -1,6 +1,6 @@
 ﻿unit UnitFilter;
 
-interface uses System.IOUtils, System.Classes, System.SysUtils, IniFiles, UnitUtils;
+interface uses System.IOUtils, System.Classes, System.SysUtils, IniFiles, Math, StrUtils, UnitUtils;
 
 {***
   Ожидаемая структура фильтра:
@@ -164,6 +164,7 @@ public
   constructor Create(FileName: string; Content: TStrings; Actions: TActions);
   destructor Destroy(); override;
   procedure Parse(Data: TStrings);
+  function Content(): TStrings;
   property FileName: string read FFileName;
   property Actions: TActions read FActions;
   property Sections: TFilterSections read FSections;
@@ -483,6 +484,116 @@ begin
   collectedMarkers.Free();
 
   lineTrim := '';
+end;
+
+function TFilter.Content(): TStrings;
+  function GetMaxLength(const Items: TStrings): integer;
+  var
+    i: integer;
+  begin
+    Result := 0;
+    for i := 0 to Items.Count - 1 do
+    begin
+      Result := Math.Max(Result, Length(Items[i]));
+    end;
+  end;
+
+  function BuildArguments(const item: TFilterItem): string;
+  var
+    i, argRefId: integer;
+    sDefault, sFormat: string;
+  begin
+    Result := '';
+    for i := 0 to item.Arguments.Count - 1 do
+    begin
+      argRefId := i;
+      if argRefId > High(item.Action.Arguments) then
+      begin
+        argRefId := High(item.Action.Arguments);
+      end;
+
+      sDefault := item.Action.Arguments[argRefId].GetDefaultValue();
+      if sDefault <> item.Arguments[i] then
+      begin
+        sFormat := '%s %s';
+        if item.Action.Arguments[argRefId].Kind = akVariadic then
+        begin
+          sFormat := '%s "%s"';
+        end;
+
+        Result := Format(sFormat, [Result, item.Arguments[i]]);
+      end;
+    end;
+
+    Result := Trim(Result);
+  end;
+var
+  p, i, z: Integer;
+  block: TFilterBlock;
+  item: TFilterItem;
+  prefix: string;
+begin
+  Result := TStringList.Create();
+
+  for i := Low(FSections) to High(FSections) do
+  begin
+    z := GetMaxLength(FSections[i].Comment);
+    Result.Add(DupeString(cfPrefComment, z + 4));
+    for p := 0 to FSections[i].Comment.Count - 1 do
+    begin
+      Result.Add(Format(
+        '%s %s%s %s',
+        [
+          cfPrefComment,
+          FSections[i].Comment[p],
+          DupeString(' ', z - Length(FSections[i].Comment[p])),
+          cfPrefComment
+        ]
+      ));
+    end;
+    Result.Add(DupeString(cfPrefComment, z + 4));
+
+    for p := Low(FSections[i].Blocks) to High(FSections[i].Blocks) do
+    begin
+      block := FSections[i].Blocks[p];
+
+      // comment
+      for z := 0 to block.Comment.Count - 1 do
+      begin
+        Result.Add(Format('%s %s', [cfPrefComment, block.Comment[z]]));
+      end;
+
+      // markers.
+      for z := Low(block.FMarkers) to High(block.FMarkers) do
+      begin
+        if block.FMarkers[z].Value = '' then
+        begin
+          Result.Add(Format('%s%s', [cfPrefMarker, block.FMarkers[z].Name]));
+        end else begin
+          Result.Add(Format('%s%s:%s', [cfPrefMarker, block.FMarkers[z].Name, block.FMarkers[z].Value]));
+        end;
+      end;
+
+      // disabled item prefix (comment)
+      prefix := '';
+      if block.HasMarker(TFilterBlock.mDisabled) then
+      begin
+        prefix := cfPrefComment;
+      end;
+
+      Result.Add(Format('%s%s', [prefix, block.Kind]));
+
+      for z := Low(block.Items) to High(block.Items) do
+      begin
+        item := block.Items[z];
+
+        Result.Add(TrimRight(Format('%s    %s %s', [prefix, item.Name, BuildArguments(item)])));
+      end;
+
+      // finisher.
+      Result.Add('');
+    end;
+  end;
 end;
 {$ENDREGION}
 
@@ -940,6 +1051,7 @@ var
   delete: boolean;
   i: integer;
 begin
+  delete := false;
   for i := Low(FMarkers) to High(FMarkers) do
   begin
     if delete then

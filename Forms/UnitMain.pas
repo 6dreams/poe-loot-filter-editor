@@ -42,6 +42,7 @@ TfrmMain = class(TForm)
   pmCreateBlock: TMenuItem;
   miHelp: TMenuItem;
   miAbout: TMenuItem;
+    miFileSave: TMenuItem;
   procedure miFileLoadClick(Sender: TObject);
   procedure FormCreate(Sender: TObject);
   procedure lbFilterMeasureItem(Control: TWinControl; Index: Integer; var Height: Integer);
@@ -59,6 +60,7 @@ TfrmMain = class(TForm)
   procedure lbFilterKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   procedure lbFilterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   procedure miAboutClick(Sender: TObject);
+  procedure miFileSaveClick(Sender: TObject);
 private
   DebugEnabled: boolean;
   FilterIsDoubleClicked: boolean;
@@ -190,6 +192,15 @@ begin
     end;
   end;
   lbFilter.Items.EndUpdate();
+end;
+
+procedure TfrmMain.miFileSaveClick(Sender: TObject);
+var
+  slTemp: TStrings;
+begin
+  slTemp := Filter.Content();
+  slTemp.SaveToFile(Filter.FileName + '.new');
+  slTemp.Free();
 end;
 
 procedure TfrmMain.pmAddSectionClick(Sender: TObject);

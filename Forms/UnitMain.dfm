@@ -49,6 +49,10 @@ object frmMain: TfrmMain
         Caption = 'Load'
         OnClick = miFileLoadClick
       end
+      object miFileSave: TMenuItem
+        Caption = 'Save'
+        OnClick = miFileSaveClick
+      end
     end
     object miEdit: TMenuItem
       Caption = 'Edit'
