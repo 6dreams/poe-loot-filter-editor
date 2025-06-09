@@ -12,6 +12,7 @@ object frmMain: TfrmMain
   Font.Style = []
   Menu = mmMain
   OldCreateOrder = False
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   DesignSize = (
     937
@@ -45,6 +46,13 @@ object frmMain: TfrmMain
     Top = 56
     object miFile: TMenuItem
       Caption = 'Filter'
+      object miFileNew: TMenuItem
+        Caption = 'New'
+        OnClick = miFileNewClick
+      end
+      object N5: TMenuItem
+        Caption = '-'
+      end
       object miFileLoad: TMenuItem
         Caption = 'Load'
         OnClick = miFileLoadClick
@@ -52,14 +60,23 @@ object frmMain: TfrmMain
       object miFileSave: TMenuItem
         AutoHotkeys = maAutomatic
         Caption = '&Save'
+        Enabled = False
         ShortCut = 16467
         OnClick = miFileSaveClick
+      end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object miExit: TMenuItem
+        Caption = 'Exit'
+        OnClick = miExitClick
       end
     end
     object miEdit: TMenuItem
       Caption = 'Edit'
       object miAddSection: TMenuItem
         Caption = 'Create Section'
+        Enabled = False
         OnClick = pmAddSectionClick
       end
       object N2: TMenuItem

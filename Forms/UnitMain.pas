@@ -32,6 +32,8 @@ TfrmMain = class(TForm)
   N2: TMenuItem;
   N3: TMenuItem;
   N4: TMenuItem;
+  N5: TMenuItem;
+  N6: TMenuItem;
   miAddSection: TMenuItem;
   pmDelete: TMenuItem;
   miDelete: TMenuItem;
@@ -42,7 +44,9 @@ TfrmMain = class(TForm)
   pmCreateBlock: TMenuItem;
   miHelp: TMenuItem;
   miAbout: TMenuItem;
-    miFileSave: TMenuItem;
+  miFileSave: TMenuItem;
+  miFileNew: TMenuItem;
+  miExit: TMenuItem;
   procedure miFileLoadClick(Sender: TObject);
   procedure FormCreate(Sender: TObject);
   procedure lbFilterMeasureItem(Control: TWinControl; Index: Integer; var Height: Integer);
@@ -61,6 +65,9 @@ TfrmMain = class(TForm)
   procedure lbFilterMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   procedure miAboutClick(Sender: TObject);
   procedure miFileSaveClick(Sender: TObject);
+  procedure miFileNewClick(Sender: TObject);
+  procedure miExitClick(Sender: TObject);
+  procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 private
   DebugEnabled: boolean;
   FilterIsDoubleClicked: boolean;
@@ -72,6 +79,7 @@ private
   procedure FilterExchange(const Source, Destination: integer);
   procedure FilterRebuildIndexes();
   procedure RebuildAllRefList();
+  procedure LoadFilter(const FileName: string);
   function StrPtr(const ref: TFilterRef): string;
 end;
 
@@ -111,11 +119,27 @@ begin
   self.Block := Block;
 end;
 
+procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  // todo: we can check is filter changed
+end;
+
 procedure TfrmMain.FormCreate(Sender: TObject);
+var
+  i: integer;
 begin
   DebugEnabled := FindCmdLineSwitch('debug');
   LoadConfigs();
   lbFilterClick(nil);
+
+  for i := 1 to ParamCount do
+  begin
+    if FileExists(ParamStr(i)) then
+    begin
+      LoadFilter(ParamStr(i));
+      break;
+    end;
+  end;
 end;
 
 {*
@@ -147,14 +171,15 @@ begin
   frmAbout.Free();
 end;
 
+procedure TfrmMain.miExitClick(Sender: TObject);
+begin
+  Close();
+end;
+
 procedure TfrmMain.miFileLoadClick(Sender: TObject);
 var
   selector: TfrmFilterSelector;
   filterName: string;
-  filterContent: TStringList;
-  section: TFilterSection;
-  iSection, iItem: integer;
-  ref: TFilterRef;
 begin
   selector := TfrmFilterSelector.Create(frmMain);
   filterName := selector.GetFilter();
@@ -165,39 +190,22 @@ begin
     exit;
   end;
 
-  Caption := Format(cAppTitle, [TFilterUtils.GetSimpleName(filterName), '']);
+  LoadFilter(filterName);
+end;
 
-  filterContent := TStringList.Create();
-  filterContent.LoadFromFile(filterName);
-
-  if Assigned(Filter) then
-  begin
-    Filter.Free();
-  end;
-  Filter := TFilter.Create(filterName, filterContent, Actions);
-  filterContent.Free();
-
-  lbFilter.Items.Clear();
-  lbFilter.Items.BeginUpdate();
-  for iSection := Low(Filter.Sections) to High(Filter.Sections) do
-  begin
-    section := Filter.Sections[iSection];
-    ref := TFilterRef.Create(section, iSection);
-    lbFilter.AddItem(StrPtr(ref), ref);
-
-    for iItem := Low(section.Blocks) to High(section.Blocks) do
-    begin
-      ref := TFilterRef.Create(section, section.Blocks[iItem], iSection, iItem);
-      lbFilter.AddItem(StrPtr(ref), ref);
-    end;
-  end;
-  lbFilter.Items.EndUpdate();
+procedure TfrmMain.miFileNewClick(Sender: TObject);
+begin
+  // todo: new wnd & result from it.
 end;
 
 procedure TfrmMain.miFileSaveClick(Sender: TObject);
 var
   slTemp: TStrings;
 begin
+  if Filter = nil then
+  begin
+    exit;
+  end;
   slTemp := Filter.Content();
   slTemp.SaveToFile(Filter.FileName);
   slTemp.Free();
@@ -489,6 +497,45 @@ begin
   lbFilter.Items.EndUpdate();
 end;
 
+
+procedure TfrmMain.LoadFilter(const FileName: string);
+var
+  filterContent: TStringList;
+  section: TFilterSection;
+  iSection, iItem: integer;
+  ref: TFilterRef;
+begin
+  Caption := Format(cAppTitle, [TFilterUtils.GetSimpleName(FileName), '']);
+
+  filterContent := TStringList.Create();
+  filterContent.LoadFromFile(FileName);
+
+  if Assigned(Filter) then
+  begin
+    Filter.Free();
+  end;
+  miFileSave.Enabled := true;
+  miAddSection.Enabled := true;
+  Filter := TFilter.Create(FileName, filterContent, Actions);
+  filterContent.Free();
+
+  lbFilter.Items.Clear();
+  lbFilter.Items.BeginUpdate();
+  for iSection := Low(Filter.Sections) to High(Filter.Sections) do
+  begin
+    section := Filter.Sections[iSection];
+    ref := TFilterRef.Create(section, iSection);
+    lbFilter.AddItem(StrPtr(ref), ref);
+
+    for iItem := Low(section.Blocks) to High(section.Blocks) do
+    begin
+      ref := TFilterRef.Create(section, section.Blocks[iItem], iSection, iItem);
+      lbFilter.AddItem(StrPtr(ref), ref);
+    end;
+  end;
+  lbFilter.Items.EndUpdate();
+end;
+
 procedure TfrmMain.FilterRebuildIndexes();
 var
   Index, iSection, iBlock: integer;
@@ -528,6 +575,8 @@ begin
   miDelete.Enabled := hasSelection;
 
   pmCreateBlock.Enabled := hasSelection;
+
+  pmAddSection.Enabled := miAddSection.Enabled;
 
   if hasSelection then
   begin
