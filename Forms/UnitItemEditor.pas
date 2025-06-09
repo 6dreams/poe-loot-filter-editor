@@ -219,8 +219,33 @@ begin
 end;
 
 procedure TfrmItemEditor.bOKClick(Sender: TObject);
+const
+  csError = 'Error';
+  csFormat = 'Please enter value for %s.';
+var
+  action: TAction;
+  args: TStrings;
+  i: Integer;
 begin
-  // todo: validate
+  action := GetActionById(cbType.ItemIndex);
+  args   := FArguments[cbType.ItemIndex];
+
+  for i := Low(action.Arguments) to High(action.Arguments) do
+  begin
+    if i >= args.Count then
+    begin
+      MessageBox(Handle, PChar(Format(csFormat, [action.Arguments[i].Name])), csError, MB_ICONERROR);
+      exit;
+    end;
+
+    if args[i] = '' then
+    begin
+      MessageBox(Handle, PChar(Format(csFormat, [action.Arguments[i].Name])), csError, MB_ICONERROR);
+      exit;
+    end;
+
+  end;
+
   ModalResult := mrOk;
   CloseModal();
 end;

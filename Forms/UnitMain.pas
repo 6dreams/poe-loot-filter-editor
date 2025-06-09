@@ -199,7 +199,7 @@ var
   slTemp: TStrings;
 begin
   slTemp := Filter.Content();
-  slTemp.SaveToFile(Filter.FileName + '.new');
+  slTemp.SaveToFile(Filter.FileName);
   slTemp.Free();
 end;
 

@@ -383,8 +383,6 @@ begin
     StrToIntDef(tColorBlue.Text, 0)
   );
 
-  //cdColorSelector.CustomColors.
-
   if cdColorSelector.Execute(Handle) then
   begin
     tColorRed.Text := IntToStr(GetRValue(cdColorSelector.Color));

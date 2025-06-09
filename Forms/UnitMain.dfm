@@ -50,7 +50,9 @@ object frmMain: TfrmMain
         OnClick = miFileLoadClick
       end
       object miFileSave: TMenuItem
-        Caption = 'Save'
+        AutoHotkeys = maAutomatic
+        Caption = '&Save'
+        ShortCut = 16467
         OnClick = miFileSaveClick
       end
     end
