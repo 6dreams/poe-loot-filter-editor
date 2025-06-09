@@ -72,6 +72,7 @@ private
   DebugEnabled: boolean;
   FilterIsDoubleClicked: boolean;
   Filter: TFilter;
+  FilterChanged: boolean;
   Actions: TActions;
   procedure LoadConfigs();
   function GetRefByIndex(const Index: integer): TFilterRef;
@@ -80,6 +81,8 @@ private
   procedure FilterRebuildIndexes();
   procedure RebuildAllRefList();
   procedure LoadFilter(const FileName: string);
+  procedure UpdateTitle(); overload;
+  procedure UpdateTitle(ForceState: boolean); overload;
   function StrPtr(const ref: TFilterRef): string;
 end;
 
@@ -121,7 +124,14 @@ end;
 
 procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  // todo: we can check is filter changed
+  if FilterChanged then
+  begin
+    if MessageBox(Handle, 'Filter is changed, close without changes?', 'Unsaved filter', MB_YESNO) = IDYES then
+    begin
+      exit;
+    end;
+    CanClose := false;
+  end;
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
@@ -209,6 +219,7 @@ begin
   slTemp := Filter.Content();
   slTemp.SaveToFile(Filter.FileName);
   slTemp.Free();
+  UpdateTitle(false);
 end;
 
 procedure TfrmMain.pmAddSectionClick(Sender: TObject);
@@ -265,6 +276,7 @@ begin
 
   lbFilter.Items.InsertObject(targetPosition, StrPtr(ref), ref);
   FilterRebuildIndexes();
+  UpdateTitle(true);
 end;
 
 procedure TfrmMain.pmCreateBlockClick(Sender: TObject);
@@ -308,6 +320,8 @@ begin
   begin
     exit;
   end;
+
+  UpdateTitle(true);
 
   ref := GetRefByIndex(lbFilter.ItemIndex);
 
@@ -356,6 +370,8 @@ begin
     exit;
   end;
 
+  UpdateTitle(true);
+
   if ref.IsBlock() then
   begin
     frmBlock := TfrmBlockEditor.Create(self);
@@ -396,6 +412,8 @@ begin
     exit;
   end;
 
+  UpdateTitle(true);
+
   src := GetRefByIndex(lbFilter.ItemIndex);
   if src.IsSection() then
   begin
@@ -413,6 +431,8 @@ begin
   begin
     exit;
   end;
+
+  UpdateTitle(true);
 
   src := GetRefByIndex(lbFilter.ItemIndex);
   if src.IsSection() then
@@ -438,6 +458,7 @@ var
   src, dst: TFilterRef;
 begin
   src := GetRefByIndex(Source);
+  UpdateTitle(true);
   if src.IsSection() then
   begin
     dst := GetRefByIndex(Destination);
@@ -498,6 +519,23 @@ begin
 end;
 
 
+procedure TfrmMain.UpdateTitle();
+var
+  star: string;
+begin
+  if FilterChanged then
+  begin
+    star := '*';
+  end;
+  Caption := Format(cAppTitle, [TFilterUtils.GetSimpleName(Filter.FileName), star]);
+end;
+
+procedure TfrmMain.UpdateTitle(ForceState: boolean);
+begin
+  FilterChanged := ForceState;
+  UpdateTitle();
+end;
+
 procedure TfrmMain.LoadFilter(const FileName: string);
 var
   filterContent: TStringList;
@@ -505,8 +543,6 @@ var
   iSection, iItem: integer;
   ref: TFilterRef;
 begin
-  Caption := Format(cAppTitle, [TFilterUtils.GetSimpleName(FileName), '']);
-
   filterContent := TStringList.Create();
   filterContent.LoadFromFile(FileName);
 
@@ -534,6 +570,7 @@ begin
     end;
   end;
   lbFilter.Items.EndUpdate();
+  UpdateTitle(false);
 end;
 
 procedure TfrmMain.FilterRebuildIndexes();
@@ -605,7 +642,6 @@ procedure TfrmMain.lbFilterDblClick(Sender: TObject);
 begin
   FilterIsDoubleClicked := true;
   pmEditClick(Sender);
-
 end;
 
 procedure TfrmMain.lbFilterDragDrop(Sender, Source: TObject; X, Y: Integer);
