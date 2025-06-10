@@ -1,8 +1,8 @@
 ﻿unit UnitMain;
 
 interface uses Winapi.Windows, Winapi.Messages, System.SysUtils, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Menus,
-  System.ImageList, Vcl.ImgList, System.Classes, Vcl.StdCtrls,
- Math, UnitFilter, UnitSectionEditor, UnitFilterSelector, UnitBlockEditor, UnitAbout;
+  System.ImageList, Vcl.ImgList, System.Classes, Vcl.StdCtrls, Math, UnitFilter, UnitSectionEditor, UnitFilterSelector,
+  UnitBlockEditor, UnitAbout, UnitNewFilter;
 
 type
 TFilterRef = class
@@ -204,8 +204,31 @@ begin
 end;
 
 procedure TfrmMain.miFileNewClick(Sender: TObject);
+var
+  newFilter: TfrmNewFilter;
+  filterName: string;
+  filterContent: TStringList;
 begin
-  // todo: new wnd & result from it.
+  newFilter := TfrmNewFilter.Create(self);
+
+  filterName := newFilter.NewFilter();
+  if filterName <> '' then
+  begin
+    if Assigned(Filter) then
+    begin
+      Filter.Free();
+    end;
+    miFileSave.Enabled := true;
+    miAddSection.Enabled := true;
+    filterContent := TStringList.Create();
+    Filter := TFilter.Create(filterName, filterContent, Actions);
+    filterContent.Free();
+
+    lbFilter.Items.Clear();
+    UpdateTitle(true);
+  end;
+
+  newFilter.Free();
 end;
 
 procedure TfrmMain.miFileSaveClick(Sender: TObject);

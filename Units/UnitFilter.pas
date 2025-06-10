@@ -28,6 +28,9 @@ interface uses System.IOUtils, System.Classes, System.SysUtils, IniFiles, Math, 
 
 ***}
 
+const
+  caFormat: array[0..1] of string = ('.filter', '.ruthlessfilter');
+
 type
 TFilterConfig = class
   // пока пусто
@@ -191,7 +194,6 @@ TParsedItem = record
 end;
 
 const
-  cFilterExtension: string = '.filter';
   cfPrefConfig: string = '#$##';
   cfPrefSection: string = '####';
   cfPrefComment: string = '#';
@@ -1090,18 +1092,30 @@ end;
 
 {$REGION 'TFilterUtils class functions'}
 class function TFilterUtils.IsFilter(Name: string): boolean;
+var
+  ext: string;
+  i: integer;
 begin
-  Result := TPath.GetExtension(Name) = cFilterExtension;
+  ext := TPath.GetExtension(Name);
+  Result := false;
+  for i := Low(caFormat) to High(caFormat) do
+  begin
+    if caFormat[i] = ext then
+    begin
+      Result := true;
+      exit;
+    end;
+  end;
 end;
 
 class function TFilterUtils.GetSimpleName(Name: string): string;
 begin
-  Result := TPath.GetFileNameWithoutExtension(Name);
+  Result := TPath.GetFileName(Name);
 end;
 
 class function TFilterUtils.GetFileName(SimpleName: string): string;
 begin
-  Result := SimpleName + cFilterExtension;
+  Result := SimpleName;
 end;
 
 class function TFilterUtils.IsOperator(const S: string; const Index: integer): boolean;

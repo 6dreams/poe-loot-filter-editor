@@ -143,6 +143,10 @@
             <Form>frmAbout</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="Forms\UnitNewFilter.pas">
+            <Form>frmNewFilter</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <RcItem Include="Resources\actions.ini">
             <ContainerId>ResourceItem</ContainerId>
             <ResourceType>RCDATA</ResourceType>
