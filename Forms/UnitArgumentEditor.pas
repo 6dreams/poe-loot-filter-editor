@@ -161,8 +161,6 @@ const
 var
   i, iBaseSize: integer;
 begin
-  Result := nil;
-
   Caption := Argument.Name;
   FArgument := Argument;
 

@@ -18,7 +18,7 @@ TfrmItemEditor = class(TForm)
   procedure cbTypeClick(Sender: TObject);
   procedure bOKClick(Sender: TObject);
   procedure llTextLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
-  procedure gbEditorDblClick(Sender: TObject);
+  {$IFDEF DEBUG}procedure gbEditorDblClick(Sender: TObject);{$ENDIF}
   procedure FormCreate(Sender: TObject);
   procedure OnSearch(Text: string);
 private
