@@ -14,7 +14,7 @@ uses
   UnitItemEditor in 'Forms\UnitItemEditor.pas' {frmItemEditor},
   UnitArgumentEditor in 'Forms\UnitArgumentEditor.pas' {frmArgumentEditor},
   UnitAbout in 'Forms\UnitAbout.pas' {frmAbout},
-  Unit1 in 'Unit1.pas' {frmNewFilter};
+  UnitNewFilter in 'Forms\UnitNewFilter.pas' {frmNewFilter};
 
 {$R *.res}
 
@@ -22,7 +22,6 @@ begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TfrmMain, frmMain);
-  Application.CreateForm(TfrmNewFilter, frmNewFilter);
   wuLoadInternalFont();
   Application.Run;
   wuUnloadInternalFont();

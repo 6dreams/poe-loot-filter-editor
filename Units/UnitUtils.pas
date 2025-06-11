@@ -12,8 +12,11 @@ function SplitString(const S: string; const Delimiter: string; const AllowEmpty:
 function TrimString(Str: string; Symbol: char): string;
 procedure DrawOpacityImage(Where: TCanvas; X, Y: Integer; Image: TBitmap; Opacity: Byte);
 function DesireBackgroundColor(const Color: TColor): TColor;
+function MeasureDrop(const FontSize: integer; const Text: string): TSize;
 function DrawDrop(const Where: TCanvas; const CanvasSize: TSize; const Text: string; const FontSize: integer; const TextColor, BorderColor, BackgroundColor: TColor; const AlphaText, AlphaBorder, AlphaBackground: Byte; Flags: TDropDrawFlags = []): TRect;
 implementation
+var
+  bitMeasurer: TBitmap;
 
 function SplitString(const S: string; const Delimiter: string; const AllowEmpty: boolean = false; const NilOnEmpty: boolean = false): TStrings;
 var
@@ -108,6 +111,28 @@ begin
   end;
 end;
 
+function MeasureDrop(const FontSize: integer; const Text: string): TSize;
+  function GetCanvas(): TCanvas;
+  begin
+    if bitMeasurer = nil then
+    begin
+      bitMeasurer := TBitmap.Create();
+    end;
+
+    Result := bitMeasurer.Canvas;
+  end;
+var
+  c: TCanvas;
+begin
+  c := GetCanvas();
+  c.Font.Name := InternalFontName;
+  c.Font.Size := FontSize;
+
+  Result := c.TextExtent(Text);
+  Inc(Result.cx, 10);
+  Inc(Result.cy, 10);
+end;
+
 function DrawDrop(const Where: TCanvas; const CanvasSize: TSize; const Text: string; const FontSize: integer; const TextColor, BorderColor, BackgroundColor: TColor; const AlphaText, AlphaBorder, AlphaBackground: Byte; Flags: TDropDrawFlags = []): TRect;
 var
   tb: TBitmap;
@@ -139,7 +164,9 @@ var
 begin
   tb := TBitmap.Create();
   tb.PixelFormat := pf32Bit;
+  tb.AlphaFormat := afPremultiplied;
   tb.TransparentMode := tmFixed;
+  // AlphaBlend() // todo try it
   c := tb.Canvas;
   c.Font.Size := FontSize;
   c.Font.Name := InternalFontName;

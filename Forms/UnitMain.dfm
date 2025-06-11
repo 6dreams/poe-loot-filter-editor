@@ -5,6 +5,8 @@ object frmMain: TfrmMain
   ClientHeight = 394
   ClientWidth = 937
   Color = clBtnFace
+  Constraints.MinHeight = 250
+  Constraints.MinWidth = 550
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
@@ -22,7 +24,7 @@ object frmMain: TfrmMain
   object lbFilter: TListBox
     Left = 0
     Top = 0
-    Width = 705
+    Width = 937
     Height = 394
     Style = lbOwnerDrawVariable
     Anchors = [akLeft, akTop, akRight, akBottom]

@@ -1,6 +1,6 @@
 ﻿unit UnitFilter;
 
-interface uses System.IOUtils, System.Classes, System.SysUtils, IniFiles, Math, StrUtils, UnitUtils;
+interface uses System.IOUtils, System.Classes, System.SysUtils, Graphics, Windows, IniFiles, Math, StrUtils, UnitUtils;
 
 {***
   Ожидаемая структура фильтра:
@@ -118,6 +118,31 @@ public
   property Arguments: TStrings read FArguments;
 end;
 
+TDrawColor = record
+  Color: TColor;
+  Alpha: byte;
+end;
+TDrawData = class
+private
+  FText: string;
+  FFontSize: integer;
+  FBackgroundColor, FTextColor, FBorderColor: TColor;
+  FBackgroundAlpha, FTextAlpha, FBorderAlpha: Byte;
+  FSize: TSize;
+public
+  property Text: string read FText;
+  property FontSize: integer read FFontSize;
+  property BackgroundColor: TColor read FBackgroundColor;
+  property TextColor: TColor read FTextColor;
+  property BorderColor: TColor read FBorderColor;
+
+  property Size: TSize read FSize;
+
+  property BackgroundAlpha: Byte read FBackgroundAlpha;
+  property TextAlpha: Byte read FTextAlpha;
+  property BorderAlpha: Byte read FBorderAlpha;
+end;
+
 TFilterItems = array of TFilterItem;
 TFilterBlock = class
 private
@@ -125,15 +150,18 @@ private
   FComment: TStrings;
   FMarkers: array of TFilterMarker;
   FItems: TFilterItems;
+  FDrawDataCache: TDrawData;
 public
   constructor Create();
   destructor Destroy(); override;
   procedure Delete(const Index: integer);
   procedure Insert(const Index: integer; const Item: TFilterItem);
   function Clone(): TFilterBlock;
+  function GetDrawData(): TDrawData;
   function HasMarker(Name: string): boolean;
   procedure UpdateMarker(const Name, Value: string);
   procedure DeleteMarker(const Name: string);
+  function GetItemByName(const Name: string): TFilterItem;
   property Kind: string read FType write FType;
   property Comment: TStrings read FComment;
   property Items: TFilterItems read FItems;
@@ -958,6 +986,180 @@ begin
   begin
     FItems[i].Free();
   end;
+
+  if FDrawDataCache <> nil then
+  begin
+    FDrawDataCache.Free();
+  end
+end;
+
+function TFilterBlock.GetItemByName(const Name: string): TFilterItem;
+var
+  i: integer;
+begin
+  Result := nil;
+  for i := Low(FItems) to High(FItems) do
+  begin
+    if LowerCase(Name) = LowerCase(FItems[i].FName) then
+    begin
+      Result := FItems[i];
+    end;
+  end;
+end;
+
+function TFilterBlock.GetDrawData(): TDrawData;
+  function GetItemByRarity(const Rarity: string): string;
+  begin
+    if Rarity = 'normal' then
+    begin
+      Result := 'Amber Amulet';
+    end;
+    if Rarity = 'magic' then
+    begin
+      Result := 'Crimson Jewel';
+    end;
+    if Rarity = 'rare' then
+    begin
+      Result := 'Diamond Ring';
+    end;
+    if Rarity = 'unique' then
+    begin
+      Result := 'Mageblood';
+    end;
+  end;
+  function DetermineText(): string;
+  var
+    i: integer;
+  begin
+    Result := FItems[0].Name;
+    for i := Low(FItems) to High(FItems) do
+    begin
+      if (LowerCase(FItems[i].FName) = 'basetype') and (FItems[i].Arguments.Count >= 2) then
+      begin
+        Result := FItems[i].FArguments[1];
+        exit;
+      end;
+      if (LowerCase(FItems[i].FName) = 'class') and (FItems[i].Arguments.Count >= 2) then
+      begin
+        Result := FItems[i].FArguments[1];
+      end;
+      if (LowerCase(FItems[i].FName) = 'rarity') and (FItems[i].Arguments.Count >= 2) then
+      begin
+        Result := GetItemByRarity(LowerCase(FItems[i].FArguments[1]));
+      end;
+    end;
+  end;
+
+  function DetermineDefaultColor(): TDrawColor;
+    function GetNamedValue(const Name: string): string;
+    var
+      item: TFilterItem;
+    begin
+      Result := '';
+      item := GetItemByName(Name);
+      if (item <> nil) and (item.Arguments.Count >= 2) then
+      begin
+        Result := LowerCase(Trim(item.Arguments[1]));
+      end;
+    end;
+  begin
+    // normal item.
+    Result.Color := RGB(200, 200, 200);
+    Result.Alpha := 255;
+
+    case IndexStr(GetNamedValue('rarity'), ['magic', 'rare', 'unique']) of
+      0: Result.Color := RGB(136, 136, 255);
+      1: Result.Color := RGB(255, 255, 119);
+      2: Result.Color := RGB(175, 96, 37);
+    end;
+
+    case IndexStr(GetNamedValue('class'), ['divination card', 'quest items', 'gems', 'currency', 'stackable currency']) of
+      0: Result.Color := RGB(14, 186, 255);
+      1: Result.Color := RGB(74, 230, 58);
+      2: Result.Color := RGB(27, 162, 155);
+      3: Result.Color := RGB(170, 158, 130);
+      4: Result.Color := RGB(170, 158, 130);
+    end;
+  end;
+
+  function ParseColor(const Item: TFilterItem): TDrawColor;
+  begin
+    if (Item = nil) or (Item.FArguments.Count < 3) then
+    begin
+      exit;
+    end;
+
+    Result.Alpha := 240;
+    Result.Color := RGB(
+      StrToIntDef(Item.FArguments[0], 255),
+      StrToIntDef(Item.FArguments[1], 255),
+      StrToIntDef(Item.FArguments[2], 255)
+    );
+
+    if Item.FArguments.Count >= 4 then
+    begin
+      Result.Alpha := StrToIntDef(Item.FArguments[3], 240);
+    end;
+  end;
+var
+  item: TFilterItem;
+  dc: TDrawColor;
+begin
+  if FDrawDataCache <> nil then
+  begin
+    Result := FDrawDataCache;
+
+    exit;
+  end;
+
+  FDrawDataCache := TDrawData.Create();
+
+  FDrawDataCache.FText := DetermineText();
+  item := GetItemByName('SetBackgroundColor');
+  if item = nil then
+  begin
+    FDrawDataCache.FBackgroundColor := RGB(40, 40, 40);
+    FDrawDataCache.FBackgroundAlpha := 220;
+  end else begin
+    dc := ParseColor(item);
+    FDrawDataCache.FBackgroundColor := dc.Color;
+    FDrawDataCache.FBackgroundAlpha := dc.Alpha;
+  end;
+
+  item := GetItemByName('SetTextColor');
+  if item = nil then
+  begin
+    dc := DetermineDefaultColor();
+    FDrawDataCache.FTextColor := dc.Color;
+    FDrawDataCache.FTextAlpha := dc.Alpha;
+  end else begin
+    dc := ParseColor(item);
+    FDrawDataCache.FTextColor := dc.Color;
+    FDrawDataCache.FTextAlpha := dc.Alpha;
+  end;
+
+  item := GetItemByName('SetBorderColor');
+  if item = nil then
+  begin
+    dc := DetermineDefaultColor();
+    FDrawDataCache.FBorderColor := dc.Color;
+    FDrawDataCache.FBorderAlpha := dc.Alpha;
+  end else begin
+    dc := ParseColor(item);
+    FDrawDataCache.FBorderColor := dc.Color;
+    FDrawDataCache.FBorderAlpha := dc.Alpha;
+  end;
+
+  FDrawDataCache.FFontSize := 16;
+  item := GetItemByName('SetFontSize');
+  if item <> nil then
+  begin
+    FDrawDataCache.FFontSize := StrToIntDef(item.FArguments[0], 32) div 2;
+  end;
+
+  FDrawDataCache.FSize := MeasureDrop(FDrawDataCache.FontSize, FDrawDataCache.FText);
+
+  Result := FDrawDataCache;
 end;
 
 procedure TFilterBlock.Delete(const Index: integer);

@@ -2,7 +2,7 @@
 
 interface uses Winapi.Windows, Winapi.Messages, System.SysUtils, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Menus,
   System.ImageList, Vcl.ImgList, System.Classes, Vcl.StdCtrls, Math, UnitFilter, UnitSectionEditor, UnitFilterSelector,
-  UnitBlockEditor, UnitAbout, UnitNewFilter;
+  UnitBlockEditor, UnitAbout, UnitNewFilter, UnitUtils;
 
 type
 TFilterRef = class
@@ -710,6 +710,8 @@ var
   icon: TIcon;
   s: string;
   item: TFilterItem;
+  isShowBlock: boolean;
+  dd: TDrawData;
   defColor: TColor;
 begin
   ref := GetRefByIndex(Index);
@@ -754,7 +756,8 @@ begin
   end;
 
   icon := TIcon.Create();
-  ilIcons.GetIcon(Ord(ref.Block.Kind = 'Show'), icon);
+  isShowBlock := ref.Block.Kind = 'Show';
+  ilIcons.GetIcon(Ord(isShowBlock), icon);
   c.Draw(Rect.Left + FilterItemPadding, Rect.Top + FilterItemPadding, icon);
   icon.Free();
 
@@ -782,6 +785,8 @@ begin
 
   dotsX := c.TextExtent(dots).Width;
 
+  dd := ref.Block.GetDrawData();
+
   for i := Low(ref.Block.Items) to High(ref.Block.Items) do
   begin
     item := ref.Block.Items[i];
@@ -804,7 +809,7 @@ begin
       end;
 
       l := c.TextExtent(s).Width;
-      if x + l + dotsX >= lbFilter.ClientWidth - FilterItemPadding * 2 then
+      if x + l + dotsX >= lbFilter.ClientWidth - FilterItemPadding * 2 - dd.Size.cx then
       begin
         c.TextOut(x, y, dots);
         break;
@@ -816,6 +821,23 @@ begin
     x := originalX;
 
     Inc(y, c.TextExtent(s).Height);
+  end;
+
+  if isShowBlock then
+  begin
+    DrawDrop(
+      c,
+      TSize.Create(Rect.Right - FilterItemPadding - dd.Size.cx, Rect.Top + Rect.Height div 2 - dd.Size.cy div 2),
+      dd.Text,
+      dd.FontSize,
+      dd.TextColor,
+      dd.BorderColor,
+      dd.BackgroundColor,
+      dd.TextAlpha,
+      dd.BorderAlpha,
+      dd.BackgroundAlpha,
+      []
+    );
   end;
 
   c.Font.Color := defColor;
