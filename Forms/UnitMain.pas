@@ -933,13 +933,6 @@ begin
   actionFile := ChangeFileExt(Application.ExeName, '.actions');
   actionStream := TResourceStream.Create(HInstance, 'ACTIONS', RT_RCDATA);
 
-  if not DebugEnabled then
-  begin
-    Actions := TActions.Create(actionStream);
-    actionStream.Free();
-    exit;
-  end;
-
   if not FileExists(actionFile) then
   begin
     actionStream.SaveToFile(actionFile);
