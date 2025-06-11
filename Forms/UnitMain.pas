@@ -393,7 +393,6 @@ begin
     exit;
   end;
 
-  UpdateTitle(true);
 
   if ref.IsBlock() then
   begin
@@ -401,6 +400,8 @@ begin
     newBlock := frmBlock.Edit(Actions, ref.Block);
     if newBlock <> nil then
     begin
+      UpdateTitle(true);
+      Filter.Sections[ref.SectionIndex].Blocks[ref.BlockIndex] := newBlock;
       ref.Block.Free();
       ref.Block := newBlock;
       OutputDebugString(PChar(newBlock.Comment.Text));
@@ -414,6 +415,7 @@ begin
   newValue := frmSection.EditSection(ref.Section.Comment);
   if newValue <> nil then
   begin
+    UpdateTitle(true);
     iPrevCount := ref.Section.Comment.Count;
     ref.Section.Comment.Assign(newValue);
     if iPrevCount = newValue.Count then
